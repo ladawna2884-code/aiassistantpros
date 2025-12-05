@@ -1,0 +1,64 @@
+ðŸš€ AI Assistant Pros
+Unlock unlimited AI-powered caption generation.
+Subscribe â€“ $5/month
+<!DOCTYPE html>
+<html>
+<head>
+    <title>AI Assistant Pros</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #f2f2f2;
+            text-align: center;
+            padding-top: 70px;
+        }
+
+        .box {
+            background: white;
+            width: 380px;
+            margin: auto;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 0 15px rgba(0,0,0,0.1);
+        }
+
+        .button {
+            display: block;
+            background: #4a74e8;
+            color: white;
+            padding: 12px;
+            border-radius: 8px;
+            text-decoration: none;
+            margin-top: 14px;
+            font-size: 18px;
+        }
+
+        .button:hover {
+            background: #3b5ec1;
+        }
+
+        .free-button {
+            background: #34a853;
+        }
+
+        .free-button:hover {
+            background: #27823f;
+        }
+
+    </style>
+</head>
+<body>
+
+    <div class="box">
+        <h2>🚀 AI Assistant Pros</h2>
+        <p>Unlock unlimited AI-powered caption generation.</p>
+
+        <!-- Paid subscription button -->
+        <a class="button" href="/create-checkout-session">Subscribe – $5/month</a>
+
+        <!-- Free tier button -->
+        <a class="button free-button" href="/caption">Try Free Version</a>
+    </div>
+
+</body>
+</html>

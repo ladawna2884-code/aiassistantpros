@@ -55,9 +55,34 @@ def success():
 # --------------------
 # CANCEL PAGE
 # --------------------
+# CANCEL PAGE
 @app.route("/cancel")
 def cancel():
     return render_template("cancel.html")
 
-# --------------------
-# CAPTI
+
+# CAPTION PAGE (Free Tier)
+@app.route("/caption")
+def caption():
+    return render_template("caption.html")
+
+
+# GENERATE CAPTION (Free Tier)
+@app.route("/generate-caption", methods=["POST"])
+def generate_caption():
+    try:
+        user_text = request.form.get("user_text", "")
+
+        response = client.chat.completions.create(
+            model="gpt-3.5-turbo",
+            messages=[
+                {"role": "system", "content": "You create short, catchy Instagram-style captions."},
+                {"role": "user", "content": user_text}
+            ]
+        )
+
+        ai_caption = response.choices[0].message["content"]
+        return jsonify({"caption": ai_caption})
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500s
