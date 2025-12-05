@@ -85,4 +85,4 @@ def generate_caption():
         return jsonify({"caption": ai_caption})
 
     except Exception as e:
-        return jsonify({"error": str(e)}), 500s
+        return jsonify({"error": str(e)}), 500
