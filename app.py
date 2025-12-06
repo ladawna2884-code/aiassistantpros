@@ -81,7 +81,7 @@ def generate_caption():
             ]
         )
 
-        ai_caption = response.choices[0].message["content"]
+        ai_caption = response.choices[0].message.content
         return jsonify({"caption": ai_caption})
 
     except Exception as e:
