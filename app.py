@@ -217,7 +217,7 @@ def api_post_ideas():
                 {"role": "user", "content": user_prompt},
             ],
         )
-        ideas = response.choices[0].message["content"]
+        ideas = response.choices[0].message.content.strip()
         return jsonify({"ideas": ideas})
     except Exception as e:
         return jsonify({"error": str(e)}), 500    
