@@ -191,7 +191,7 @@ def api_reel_script():
             ],
             temperature=0.9,
         )
-        script = response.choices[0].message["content"]
+        script = response.choices[0].message.content.strip()
         return jsonify({"script": script})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
