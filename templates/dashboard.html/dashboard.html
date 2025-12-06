@@ -1,0 +1,572 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8" />
+    <title>AI Assistant Pros – Dashboard</title>
+    <style>
+        body {
+            margin: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
+            background: #f5f7fb;
+            color: #111827;
+        }
+
+        .layout {
+            display: grid;
+            grid-template-columns: 240px 1fr;
+            min-height: 100vh;
+        }
+
+        .sidebar {
+            background: #0f172a;
+            color: #e5e7eb;
+            padding: 24px 16px;
+            box-sizing: border-box;
+        }
+
+        .logo {
+            font-size: 20px;
+            font-weight: 700;
+            margin-bottom: 24px;
+        }
+
+        .logo span {
+            color: #38bdf8;
+        }
+
+        .nav-section-title {
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.12em;
+            color: #9ca3af;
+            margin: 16px 0 8px;
+        }
+
+        .nav-link {
+            display: block;
+            padding: 8px 10px;
+            border-radius: 6px;
+            font-size: 14px;
+            margin-bottom: 4px;
+            cursor: pointer;
+            color: #e5e7eb;
+            text-decoration: none;
+        }
+
+        .nav-link:hover {
+            background: #111827;
+        }
+
+        .nav-link.active {
+            background: #1d4ed8;
+        }
+
+        .main {
+            padding: 24px 32px 40px;
+            box-sizing: border-box;
+        }
+
+        .top-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
+        }
+
+        .top-bar-title {
+            font-size: 22px;
+            font-weight: 600;
+        }
+
+        .badge {
+            font-size: 11px;
+            padding: 4px 8px;
+            border-radius: 999px;
+            background: #dbeafe;
+            color: #1d4ed8;
+            margin-left: 8px;
+        }
+
+        .top-bar-subtitle {
+            font-size: 13px;
+            color: #6b7280;
+            margin-top: 4px;
+        }
+
+        .chip-row {
+            display: flex;
+            gap: 8px;
+            margin-top: 8px;
+            flex-wrap: wrap;
+        }
+
+        .chip {
+            font-size: 11px;
+            padding: 4px 8px;
+            border-radius: 999px;
+            border: 1px solid #e5e7eb;
+            background: white;
+            color: #374151;
+        }
+
+        .card {
+            background: white;
+            border-radius: 16px;
+            padding: 20px 20px 18px;
+            box-shadow: 0 10px 25px rgba(15, 23, 42, 0.07);
+            box-sizing: border-box;
+            margin-bottom: 20px;
+        }
+
+        .card-title {
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+
+        .card-subtitle {
+            font-size: 13px;
+            color: #6b7280;
+            margin-bottom: 16px;
+        }
+
+        label {
+            font-size: 13px;
+            display: block;
+            margin-bottom: 4px;
+            color: #374151;
+        }
+
+        textarea, input, select {
+            width: 100%;
+            box-sizing: border-box;
+            border-radius: 10px;
+            border: 1px solid #d1d5db;
+            padding: 10px 12px;
+            font-size: 13px;
+            font-family: inherit;
+            resize: vertical;
+        }
+
+        textarea {
+            min-height: 90px;
+        }
+
+        .row {
+            display: flex;
+            gap: 12px;
+            margin-top: 10px;
+        }
+
+        .row > div {
+            flex: 1;
+        }
+
+        .btn-primary {
+            margin-top: 14px;
+            background: #2563eb;
+            color: white;
+            border: none;
+            border-radius: 999px;
+            height: 40px;
+            padding: 0 20px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+        }
+
+        .btn-primary:hover {
+            background: #1d4ed8;
+        }
+
+        .result-box {
+            margin-top: 14px;
+            border-radius: 12px;
+            background: #f9fafb;
+            padding: 12px 14px;
+            font-size: 13px;
+            border: 1px solid #e5e7eb;
+            white-space: pre-wrap;
+        }
+
+        .result-label {
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.12em;
+            color: #9ca3af;
+            margin-bottom: 4px;
+        }
+
+        .tool {
+            display: none;
+        }
+
+        .tool.active {
+            display: block;
+        }
+
+        .pill {
+            display: inline-block;
+            font-size: 11px;
+            padding: 4px 8px;
+            border-radius: 999px;
+            background: #ecfdf3;
+            color: #15803d;
+            margin-left: 6px;
+        }
+
+        .two-column {
+            display: grid;
+            grid-template-columns: 2fr 1.2fr;
+            gap: 16px;
+        }
+
+        .side-card-list li {
+            font-size: 13px;
+            margin-bottom: 6px;
+            color: #4b5563;
+        }
+
+        .hint {
+            font-size: 12px;
+            color: #9ca3af;
+            margin-top: 4px;
+        }
+
+        @media (max-width: 900px) {
+            .layout {
+                grid-template-columns: 1fr;
+            }
+            .sidebar {
+                display: none;
+            }
+            .two-column {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+<div class="layout">
+
+    <!-- Sidebar -->
+    <aside class="sidebar">
+        <div class="logo">🚀 <span>AI Assistant Pros</span></div>
+
+        <div class="nav-section-title">Workspace</div>
+        <a class="nav-link active" data-tool="caption-tool">Smart Caption Studio</a>
+        <a class="nav-link" data-tool="hashtag-tool">Hashtag Engine</a>
+        <a class="nav-link" data-tool="script-tool">Reel Script Writer</a>
+        <a class="nav-link" data-tool="ideas-tool">Post & Reel Ideas</a>
+
+        <div class="nav-section-title">Account</div>
+        <div style="font-size: 12px; color:#9ca3af;">
+            Plan: <strong>Pro – $9.99/mo</strong><br>
+            Status: <span style="color:#22c55e;">Active</span>
+        </div>
+    </aside>
+
+    <!-- Main content -->
+    <main class="main">
+        <div class="top-bar">
+            <div>
+                <div class="top-bar-title">
+                    Creator Dashboard
+                    <span class="badge">Subscribers Only</span>
+                </div>
+                <div class="top-bar-subtitle">
+                    One workspace for captions, hashtags, scripts & ideas.
+                    <div class="chip-row">
+                        <span class="chip">✨ Optimized for Instagram & TikTok</span>
+                        <span class="chip">📅 Great for daily posting</span>
+                        <span class="chip">⚡ Built with OpenAI</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Smart Caption Studio -->
+        <section id="caption-tool" class="tool active">
+            <div class="two-column">
+                <div class="card">
+                    <div class="card-title">
+                        Smart Caption Studio
+                        <span class="pill">Premium</span>
+                    </div>
+                    <div class="card-subtitle">
+                        Turn a quick description into a polished, post-ready caption.
+                    </div>
+
+                    <label for="caption-description">What is in your photo or video?</label>
+                    <textarea id="caption-description" placeholder="Example: POV shot of my morning iced coffee in the car before work..."></textarea>
+
+                    <div class="row">
+                        <div>
+                            <label for="caption-platform">Platform</label>
+                            <select id="caption-platform">
+                                <option>Instagram</option>
+                                <option>TikTok</option>
+                                <option>Facebook</option>
+                                <option>LinkedIn</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label for="caption-tone">Tone</label>
+                            <select id="caption-tone">
+                                <option>Fun & playful</option>
+                                <option>Aesthetic / vibe</option>
+                                <option>Educational</option>
+                                <option>Storytelling</option>
+                                <option>Short & punchy</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <button class="btn-primary" id="caption-generate-btn">
+                        Generate Premium Caption
+                    </button>
+
+                    <div id="caption-result" class="result-box" style="display:none;">
+                        <div class="result-label">Generated caption</div>
+                        <div id="caption-text"></div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-title">Pro tips for better captions</div>
+                    <ul class="side-card-list">
+                        <li>Mention the <strong>mood</strong> (chill, chaotic, cozy, glam).</li>
+                        <li>Tell AI what you’re selling or promoting, if anything.</li>
+                        <li>Choose the tone that matches your brand voice.</li>
+                        <li>Use this with the hashtag & script tools for full posts.</li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+
+        <!-- Hashtag Engine -->
+        <section id="hashtag-tool" class="tool">
+            <div class="card">
+                <div class="card-title">
+                    Hashtag Engine
+                    <span class="pill">Premium</span>
+                </div>
+                <div class="card-subtitle">
+                    Get niche, non-spammy hashtags tailored to your post and audience size.
+                </div>
+
+                <label for="hashtag-topic">What is your content about?</label>
+                <textarea id="hashtag-topic" placeholder="Example: small beauty business, soft glam look, targeting local clients in LA"></textarea>
+
+                <div class="row">
+                    <div>
+                        <label for="hashtag-platform">Platform</label>
+                        <select id="hashtag-platform">
+                            <option>Instagram</option>
+                            <option>TikTok</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="hashtag-size">Account size</label>
+                        <select id="hashtag-size">
+                            <option>Under 5k followers</option>
+                            <option>5k–25k followers</option>
+                            <option>25k–100k followers</option>
+                            <option>100k+ followers</option>
+                        </select>
+                    </div>
+                </div>
+
+                <button class="btn-primary" id="hashtag-generate-btn">
+                    Generate Hashtags
+                </button>
+
+                <div id="hashtag-result" class="result-box" style="display:none;">
+                    <div class="result-label">Hashtag set</div>
+                    <div id="hashtag-text"></div>
+                    <div class="hint">Tip: save your favorite sets in your phone notes or scheduling tool.</div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Reel Script Writer -->
+        <section id="script-tool" class="tool">
+            <div class="card">
+                <div class="card-title">
+                    Reel / TikTok Script Writer
+                    <span class="pill">Premium</span>
+                </div>
+                <div class="card-subtitle">
+                    Get a hook, 3–5 talking points, and a call-to-action in one go.
+                </div>
+
+                <label for="script-goal">What’s the goal of this reel?</label>
+                <textarea id="script-goal" placeholder="Example: teach 3 caption tips and invite people to try my AI Assistant Pros tool."></textarea>
+
+                <button class="btn-primary" id="script-generate-btn">
+                    Generate Reel Script
+                </button>
+
+                <div id="script-result" class="result-box" style="display:none;">
+                    <div class="result-label">Script outline</div>
+                    <div id="script-text"></div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Post & Reel Ideas -->
+        <section id="ideas-tool" class="tool">
+            <div class="card">
+                <div class="card-title">
+                    Post & Reel Idea Generator
+                    <span class="pill">Premium</span>
+                </div>
+                <div class="card-subtitle">
+                    Stuck on what to post? Get a quick list of ideas for your niche.
+                </div>
+
+                <label for="ideas-niche">Describe your niche or offer</label>
+                <textarea id="ideas-niche" placeholder="Example: beginner-friendly Python teacher, Etsy print-on-demand shop, or AI content studio"></textarea>
+
+                <button class="btn-primary" id="ideas-generate-btn">
+                    Generate 10 Content Ideas
+                </button>
+
+                <div id="ideas-result" class="result-box" style="display:none;">
+                    <div class="result-label">Content ideas</div>
+                    <div id="ideas-text"></div>
+                </div>
+            </div>
+        </section>
+    </main>
+</div>
+
+<script>
+    // Sidebar navigation
+    const navLinks = document.querySelectorAll('.nav-link');
+    const tools = document.querySelectorAll('.tool');
+
+    navLinks.forEach(link => {
+        link.addEventListener('click', () => {
+            const toolId = link.getAttribute('data-tool');
+
+            navLinks.forEach(l => l.classList.remove('active'));
+            tools.forEach(t => t.classList.remove('active'));
+
+            link.classList.add('active');
+            document.getElementById(toolId).classList.add('active');
+        });
+    });
+
+    // Helper for POST requests
+    async function postJSON(url, payload) {
+        const res = await fetch(url, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(payload)
+        });
+        return res.json();
+    }
+
+    // Smart caption
+    document.getElementById('caption-generate-btn').addEventListener('click', async () => {
+        const description = document.getElementById('caption-description').value;
+        const platform = document.getElementById('caption-platform').value;
+        const tone = document.getElementById('caption-tone').value;
+
+        const resultBox = document.getElementById('caption-result');
+        const resultText = document.getElementById('caption-text');
+        resultBox.style.display = 'block';
+        resultText.textContent = 'Thinking…';
+
+        try {
+            const data = await postJSON('/api/premium-caption', {
+                description,
+                platform,
+                tone
+            });
+
+            if (data.caption) {
+                resultText.textContent = data.caption;
+            } else {
+                resultText.textContent = data.error || 'Something went wrong.';
+            }
+        } catch (err) {
+            resultText.textContent = 'Error talking to the server.';
+        }
+    });
+
+    // Hashtags
+    document.getElementById('hashtag-generate-btn').addEventListener('click', async () => {
+        const topic = document.getElementById('hashtag-topic').value;
+        const platform = document.getElementById('hashtag-platform').value;
+        const size = document.getElementById('hashtag-size').value;
+
+        const resultBox = document.getElementById('hashtag-result');
+        const resultText = document.getElementById('hashtag-text');
+        resultBox.style.display = 'block';
+        resultText.textContent = 'Generating hashtags…';
+
+        try {
+            const data = await postJSON('/api/hashtags', {
+                topic,
+                platform,
+                size
+            });
+
+            if (data.hashtags) {
+                resultText.textContent = data.hashtags;
+            } else {
+                resultText.textContent = data.error || 'Something went wrong.';
+            }
+        } catch (err) {
+            resultText.textContent = 'Error talking to the server.';
+        }
+    });
+
+    // Script
+    document.getElementById('script-generate-btn').addEventListener('click', async () => {
+        const goal = document.getElementById('script-goal').value;
+
+        const resultBox = document.getElementById('script-result');
+        const resultText = document.getElementById('script-text');
+        resultBox.style.display = 'block';
+        resultText.textContent = 'Drafting script…';
+
+        try {
+            const data = await postJSON('/api/reel-script', { goal });
+
+            if (data.script) {
+                resultText.textContent = data.script;
+            } else {
+                resultText.textContent = data.error || 'Something went wrong.';
+            }
+        } catch (err) {
+            resultText.textContent = 'Error talking to the server.';
+        }
+    });
+
+    // Ideas
+    document.getElementById('ideas-generate-btn').addEventListener('click', async () => {
+        const niche = document.getElementById('ideas-niche').value;
+
+        const resultBox = document.getElementById('ideas-result');
+        const resultText = document.getElementById('ideas-text');
+        resultBox.style.display = 'block';
+        resultText.textContent = 'Brainstorming ideas…';
+
+        try {
+            const data = await postJSON('/api/post-ideas', { niche });
+
+            if (data.ideas) {
+                resultText.textContent = data.ideas;
+            } else {
+                resultText.textContent = data.error || 'Something went wrong.';
+            }
+        } catch (err) {
+            resultText.textContent = 'Error talking to the server.';
+        }
+    });
+</script>
+</body>
+</html>
