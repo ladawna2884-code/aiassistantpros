@@ -1,10 +1,13 @@
+from flask import session, redirect, request
+from supabase import create_client
+import os
 import os
 from flask import Flask, render_template, request, redirect, jsonify
 from openai import OpenAI
 import stripe
 
 app = Flask(__name__)
-
+supabase = create_client(os.getenv("SUPABASE_URL"), os.getenv("SUPABASE_KEY"))
 # --------------------
 # STRIPE CONFIG
 # --------------------
