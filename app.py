@@ -76,12 +76,14 @@ def generate_caption():
         response = client.chat.completions.create(
             model="gpt-3.5-turbo",
             messages=[
-                {"role": "system", "content": "You create short, catchy Instagram-style captions."},
+                {"role": "system", "content": "You create short, catchy Instagram captions."},
                 {"role": "user", "content": user_text}
             ]
         )
 
+        # FIXED LINE — NO SUBSCRIPTING ERROR
         ai_caption = response.choices[0].message.content
+
         return jsonify({"caption": ai_caption})
 
     except Exception as e:
@@ -131,7 +133,7 @@ def api_premium_caption():
             ],
             temperature=0.9,
         )
-        caption = response.choices[0].message["content"]
+        caption = response.choices[0].message.content
         return jsonify({"caption": caption})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
