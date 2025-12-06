@@ -164,7 +164,7 @@ def api_hashtags():
                 {"role": "user", "content": user_prompt},
             ],
         )
-        hashtags = response.choices[0].message["content"]
+        hashtags = response.choices[0].message.content.strip()
         return jsonify({"hashtags": hashtags})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
