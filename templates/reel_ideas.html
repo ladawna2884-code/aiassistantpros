@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Reel Idea Generator</title>
+    <style>
+        body { font-family: Arial; margin: 40px; background: #f9f9f9; }
+        .box { background: white; padding: 25px; border-radius: 12px; max-width: 600px; margin: auto; }
+        button { background: #007bff; color: white; padding: 12px; border: none; border-radius: 8px; cursor: pointer; width: 100%; }
+        textarea, input { width: 100%; padding: 12px; border-radius: 8px; margin-top: 10px; }
+    </style>
+</head>
+<body>
+
+<div class="box">
+    <h2>🎬 Reel Idea Generator</h2>
+    <p>Enter your niche and instantly get 10 viral short-form content ideas.</p>
+
+    <form action="/generate-reel-ideas" method="POST">
+        <label>Enter your niche:</label>
+        <input type="text" name="niche" placeholder="Example: fitness, beauty, motivation...">
+
+        <button type="submit">Generate Reel Ideas</button>
+    </form>
+
+    {% if ideas %}
+        <h3>🔥 Viral Reel Ideas</h3>
+        <ul>
+        {% for idea in ideas %}
+            <li>{{ idea }}</li>
+        {% endfor %}
+        </ul>
+    {% endif %}
+</div>
+
+</body>
+</html>

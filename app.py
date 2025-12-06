@@ -1,13 +1,14 @@
-from flask import session, redirect, request
-from supabase import create_client
-import os
-import os
-from flask import Flask, render_template, request, redirect, jsonify
-from openai import OpenAI
-import stripe
+1  from flask import Flask, render_template, request, redirect, session, jsonify
+2  from supabase import create_client, Client
+3  from openai import OpenAI
+4  import stripe
+5  import os
+6
+7  app = Flask(__name__)
+8  app.secret_key = os.getenv("SECRET_KEY")
+9
+10 supabase = create_client(os.getenv("SUPABASE_URL"), os.getenv("SUPABASE_KEY"))
 
-app = Flask(__name__)
-supabase = create_client(os.getenv("SUPABASE_URL"), os.getenv("SUPABASE_KEY"))
 # --------------------
 # STRIPE CONFIG
 # --------------------
@@ -63,6 +64,67 @@ def success():
 def cancel():
     return render_template("cancel.html")
 
+# ============================================
+# USER AUTHENTICATION (Supabase)
+# ============================================
+
+# SIGNUP PAGE
+@app.route("/signup", methods=["GET", "POST"])
+def signup():
+    if request.method == "POST":
+        email = request.form.get("email")
+        password = request.form.get("password")
+
+        response = supabase.auth.sign_up({
+            "email": email,
+            "password": password
+        })
+
+        if "error" in response and response["error"]:
+            return render_template("signup.html", error=response["error"]["message"])
+
+        return redirect("/signup-success")
+
+return render_template("signup.html")
+
+
+# LOGIN PAGE
+@app.route("/login", methods=["GET", "POST"])
+def login():
+    if request.method == "POST":
+        email = request.form.get("email")
+        password = request.form.get("password")
+
+        response = supabase.auth.sign_in_with_password({
+            "email": email,
+            "password": password
+        })
+
+        if "error" in response and response["error"]:
+            return render_template("login.html", error=response["error"]["message"])
+
+        session["user"] = response["user"]["id"]
+        return redirect("/dashboard")
+
+    return render_template("login.html")
+
+@app.route("/signup-success")
+def signup_success():
+    return render_template("signup_success.html")
+
+# LOGOUT
+@app.route("/logout")
+def logout():
+    session.pop("user", None)
+    return redirect("/login")
+
+
+# PROTECTED DASHBOARD
+@app.route("/dashboard")
+def dashboard():
+    if "user" not in session:
+        return redirect("/login")
+    return render_template("dashboard.html")
 
 # CAPTION PAGE (Free Tier)
 @app.route("/caption")
@@ -99,8 +161,12 @@ def generate_caption():
 
 @app.route("/dashboard")
 def dashboard():
-    # In the future this could check if user is actually paid
-    return render_template("dashboard.html")
+    if "user" not in session:
+        return redirect("/login")  # user is not logged in → send to login page
+
+    user_email = session["user"]["email"]
+    return render_template("dashboard.html", user_email=user_email)
+
 
 
 # ==========================
