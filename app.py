@@ -221,13 +221,6 @@ def api_post_ideas():
         return jsonify({"error": str(e)}), 500    
 
 
-# =====================================================
-#                PREMIUM USER DASHBOARD
-# =====================================================
-@app.route("/dashboard")
-def dashboard():
-    return render_template("dashboard.html")
-
 
 # =====================================================
 # PREMIUM CAPTION TOOL PAGE
