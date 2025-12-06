@@ -1,11 +1,11 @@
-1  from flask import Flask, render_template, request, redirect, session, jsonify
-2  from supabase import create_client, Client
-3  from openai import OpenAI
-4  import stripe
-5  import os
+1 from flask import Flask, render_template, request, redirect, session, jsonify
+2 from supabase import create_client, Client
+3 from openai import OpenAI
+4 import stripe
+5 import os
 6
-7  app = Flask(__name__)
-8  app.secret_key = os.getenv("SECRET_KEY")
+7 app = Flask(__name__)
+8 app.secret_key = os.getenv("SECRET_KEY")
 9
 10 supabase = create_client(os.getenv("SUPABASE_URL"), os.getenv("SUPABASE_KEY"))
 
@@ -95,18 +95,20 @@ def login():
         email = request.form.get("email")
         password = request.form.get("password")
 
-        response = supabase.auth.sign_in_with_password({
+        # Attempt login
+        result = supabase.auth.sign_in_with_password({
             "email": email,
             "password": password
         })
 
-        if "error" in response and response["error"]:
-            return render_template("login.html", error=response["error"]["message"])
+        # If login succeeded
+        if result.session:
+            session["user"] = email
+            return redirect("/dashboard")
 
-        session["user"] = response["user"]["id"]
-        return redirect("/dashboard")
+        # If login failed
+        return render_template("login.html", error="Invalid email or password")
 
-    return render_template("login.html")
 
 @app.route("/signup-success")
 def signup_success():
