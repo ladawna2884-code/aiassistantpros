@@ -1,8 +1,8 @@
-1 from flask import Flask, render_template, request, redirect, session, jsonify
-2 from supabase import create_client, Client
-3 from openai import OpenAI
-4 import stripe
-5 import os
+from flask import Flask, render_template, request, redirect, session, jsonify
+from supabase import create_client, Client
+from openai import OpenAI
+import stripe
+import os
 6
 7 app = Flask(__name__)
 8 app.secret_key = os.getenv("SECRET_KEY")
@@ -76,9 +76,11 @@ def signup():
         password = request.form.get("password")
 
         response = supabase.auth.sign_up({
-            "email": email,
-            "password": password
-        })
+    "email": email,
+    "password": password,
+    "options": {"email_redirect_to": "https://aiassistantpros.onrender.com/login"}
+})
+
 
         if "error" in response and response["error"]:
             return render_template("signup.html", error=response["error"]["message"])
@@ -108,7 +110,6 @@ def login():
 
         # If login failed
         return render_template("login.html", error="Invalid email or password")
-
 
 @app.route("/signup-success")
 def signup_success():
