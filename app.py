@@ -1,25 +1,29 @@
 from flask import Flask, render_template, request, redirect, session, jsonify
 from supabase import create_client, Client
 from openai import OpenAI
+from dotenv import load_dotenv
 import stripe
 import os
-6
-7 app = Flask(__name__)
-8 app.secret_key = os.getenv("SECRET_KEY")
-9
-10 supabase = create_client(os.getenv("SUPABASE_URL"), os.getenv("SUPABASE_KEY"))
 
-# --------------------
+# Load environment variables FIRST
+load_dotenv()
+
+# Initialize Flask app
+app = Flask(__name__)
+app.secret_key = os.getenv("41dfcd12b52cda4f7a9cd8e646ae1e6c")
+
+# Initialize Supabase client
+supabase: Client = create_client(
+    os.getenv("https://selufuikaahpuapvuebw.supabase.co"),
+    os.getenv("eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNlbHVmdWlrYWFocHVhcHZ1ZWJ3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjUwMzQwMDgsImV4cCI6MjA4MDYxMDAwOH0.71Q2t4MxGYVCBrbyRGlHv2LalffPCVwL17ScB0AZfn0")
+)
+
 # STRIPE CONFIG
-# --------------------
-stripe.api_key = os.getenv("STRIPE_SECRET_KEY")
+stripe.api_key = os.getenv("STRIP_SECRET_KEY")
 YOUR_DOMAIN = os.getenv("DOMAIN_URL", "http://127.0.0.1:5000")
 
-# --------------------
 # OPENAI CLIENT
-# --------------------
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
-
 # --------------------
 # HOME PAGE
 # --------------------
@@ -76,18 +80,18 @@ def signup():
         password = request.form.get("password")
 
         response = supabase.auth.sign_up({
-    "email": email,
-    "password": password,
-    "options": {"email_redirect_to": "https://aiassistantpros.onrender.com/login"}
-})
-
+            "email": email,
+            "password": password,
+            "options": {"email_redirect_to": "https://aiassistantpros.onrender.com/login"}
+        })
 
         if "error" in response and response["error"]:
             return render_template("signup.html", error=response["error"]["message"])
+        else:
+            return redirect("/signup-success")
 
-        return redirect("/signup-success")
-
-return render_template("signup.html")
+    # Handles GET requests — user opening page normally
+            return render_template("signup.html")
 
 
 # LOGIN PAGE
