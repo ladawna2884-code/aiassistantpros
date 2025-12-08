@@ -4,3 +4,4 @@ stripe
 gunicorn
 requests
 supabase
+python-dotenv
