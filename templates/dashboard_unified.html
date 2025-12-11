@@ -59,6 +59,21 @@
             color: #581c87;
         }
 
+        .tier-badge.trial {
+            background: #86efac;
+            color: #15803d;
+        }
+
+        .trial-info {
+            font-size: 12px;
+            color: #6b7280;
+            margin-bottom: 12px;
+            padding: 8px;
+            background: #f0fdf4;
+            border-left: 3px solid #22c55e;
+            border-radius: 4px;
+        }
+
         .nav-section-title {
             font-size: 11px;
             text-transform: uppercase;
@@ -302,18 +317,6 @@
             margin-bottom: 4px;
         }
 
-        .tool-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 20px;
-        }
-
-        @media (max-width: 1200px) {
-            .tool-grid {
-                grid-template-columns: 1fr;
-            }
-        }
-
         .logout-link {
             color: #e5e7eb;
             text-decoration: none;
@@ -336,9 +339,16 @@
     <div class="sidebar">
         <div class="logo">AI<span>Pro</span></div>
         
-        <div class="tier-badge {% if user_tier == 'premium' %}premium{% else %}free{% endif %}">
-            {{ user_tier }} tier
+        {% if trial_days_left is not none and user_tier == 'free' %}
+        <div class="tier-badge trial">🎉 FREE TRIAL</div>
+        <div class="trial-info">
+            {{ trial_days_left }} {% if trial_days_left == 1 %}day{% else %}days{% endif %} left
         </div>
+        {% elif user_tier == 'premium' %}
+        <div class="tier-badge premium">✨ PREMIUM</div>
+        {% else %}
+        <div class="tier-badge free">free tier</div>
+        {% endif %}
 
         <div class="nav-section-title">Features</div>
         <a href="#caption" class="nav-link active">Free Caption</a>
@@ -350,8 +360,10 @@
         <a href="#carousel" class="nav-link">Carousel Captions</a>
         <a href="#hooks" class="nav-link">Engagement Hooks</a>
 
-        {% if user_tier == 'free' %}
+        {% if user_tier == 'free' and trial_days_left is not none and trial_days_left <= 0 %}
         <a href="/subscribe" class="upgrade-btn">Upgrade to Premium ✨</a>
+        {% elif user_tier == 'free' %}
+        <a href="/subscribe" class="upgrade-btn">Upgrade Now (Keep Premium) 🚀</a>
         {% endif %}
 
         <a href="/logout" class="logout-link">← Logout</a>
@@ -359,6 +371,8 @@
 
     <!-- MAIN CONTENT -->
     <div class="main">
+        {% set is_premium_or_trial = (user_tier == 'premium') or (user_tier == 'free' and trial_days_left is not none and trial_days_left > 0) %}
+        
         <div class="top-bar">
             <div>
                 <div class="top-bar-title">Dashboard</div>
@@ -382,12 +396,12 @@
         </div>
 
         <!-- PREMIUM CAPTION -->
-        <div id="premium-caption" class="card {% if user_tier != 'premium' %}locked{% endif %}">
-            {% if user_tier != 'premium' %}
+        <div id="premium-caption" class="card {% if not is_premium_or_trial %}locked{% endif %}">
+            {% if not is_premium_or_trial %}
             <div class="lock-overlay">
                 <div class="lock-icon">🔒</div>
-                <div class="lock-text">Premium Feature</div>
-                <button class="lock-btn" onclick="window.location.href='/subscribe'">Unlock</button>
+                <div class="lock-text">Premium Feature (Trial Expired)</div>
+                <button class="lock-btn" onclick="window.location.href='/subscribe'">Upgrade</button>
             </div>
             {% endif %}
 
@@ -398,8 +412,8 @@
             <div class="card-subtitle">Create longer, creative captions with emojis</div>
             
             <label>Describe your content</label>
-            <textarea id="premium-caption-text" placeholder="What's your post about?" {% if user_tier != 'premium' %}disabled{% endif %}></textarea>
-            <button class="btn-primary" id="premium-caption-btn" {% if user_tier != 'premium' %}disabled{% endif %}>Generate Caption</button>
+            <textarea id="premium-caption-text" placeholder="What's your post about?" {% if not is_premium_or_trial %}disabled{% endif %}></textarea>
+            <button class="btn-primary" id="premium-caption-btn" {% if not is_premium_or_trial %}disabled{% endif %}>Generate Caption</button>
             
             <div class="result-box" id="premium-caption-result">
                 <div class="result-label">Generated Caption</div>
@@ -408,12 +422,12 @@
         </div>
 
         <!-- HASHTAGS -->
-        <div id="hashtags" class="card {% if user_tier != 'premium' %}locked{% endif %}">
-            {% if user_tier != 'premium' %}
+        <div id="hashtags" class="card {% if not is_premium_or_trial %}locked{% endif %}">
+            {% if not is_premium_or_trial %}
             <div class="lock-overlay">
                 <div class="lock-icon">🔒</div>
-                <div class="lock-text">Premium Feature</div>
-                <button class="lock-btn" onclick="window.location.href='/subscribe'">Unlock</button>
+                <div class="lock-text">Premium Feature (Trial Expired)</div>
+                <button class="lock-btn" onclick="window.location.href='/subscribe'">Upgrade</button>
             </div>
             {% endif %}
 
@@ -426,22 +440,22 @@
             <div class="row">
                 <div>
                     <label>Topic</label>
-                    <input type="text" id="hashtags-topic" placeholder="e.g., fitness, photography" {% if user_tier != 'premium' %}disabled{% endif %}>
+                    <input type="text" id="hashtags-topic" placeholder="e.g., fitness, photography" {% if not is_premium_or_trial %}disabled{% endif %}>
                 </div>
                 <div>
                     <label>Platform</label>
-                    <input type="text" id="hashtags-platform" placeholder="e.g., Instagram, TikTok" {% if user_tier != 'premium' %}disabled{% endif %}>
+                    <input type="text" id="hashtags-platform" placeholder="e.g., Instagram, TikTok" {% if not is_premium_or_trial %}disabled{% endif %}>
                 </div>
                 <div>
                     <label>Account Size</label>
-                    <select id="hashtags-size" {% if user_tier != 'premium' %}disabled{% endif %}>
+                    <select id="hashtags-size" {% if not is_premium_or_trial %}disabled{% endif %}>
                         <option>Small (0-10K)</option>
                         <option>Medium (10K-100K)</option>
                         <option>Large (100K+)</option>
                     </select>
                 </div>
             </div>
-            <button class="btn-primary" id="hashtags-btn" {% if user_tier != 'premium' %}disabled{% endif %}>Generate Hashtags</button>
+            <button class="btn-primary" id="hashtags-btn" {% if not is_premium_or_trial %}disabled{% endif %}>Generate Hashtags</button>
             
             <div class="result-box" id="hashtags-result">
                 <div class="result-label">Generated Hashtags</div>
@@ -450,12 +464,12 @@
         </div>
 
         <!-- REEL SCRIPT -->
-        <div id="reel-script" class="card {% if user_tier != 'premium' %}locked{% endif %}">
-            {% if user_tier != 'premium' %}
+        <div id="reel-script" class="card {% if not is_premium_or_trial %}locked{% endif %}">
+            {% if not is_premium_or_trial %}
             <div class="lock-overlay">
                 <div class="lock-icon">🔒</div>
-                <div class="lock-text">Premium Feature</div>
-                <button class="lock-btn" onclick="window.location.href='/subscribe'">Unlock</button>
+                <div class="lock-text">Premium Feature (Trial Expired)</div>
+                <button class="lock-btn" onclick="window.location.href='/subscribe'">Upgrade</button>
             </div>
             {% endif %}
 
@@ -466,8 +480,8 @@
             <div class="card-subtitle">Create engaging TikTok/Reel scripts</div>
             
             <label>Video Goal</label>
-            <textarea id="reel-goal" placeholder="What do you want to achieve? e.g., 'educate people about SEO'" {% if user_tier != 'premium' %}disabled{% endif %}></textarea>
-            <button class="btn-primary" id="reel-btn" {% if user_tier != 'premium' %}disabled{% endif %}>Generate Script</button>
+            <textarea id="reel-goal" placeholder="What do you want to achieve? e.g., 'educate people about SEO'" {% if not is_premium_or_trial %}disabled{% endif %}></textarea>
+            <button class="btn-primary" id="reel-btn" {% if not is_premium_or_trial %}disabled{% endif %}>Generate Script</button>
             
             <div class="result-box" id="reel-result">
                 <div class="result-label">Generated Script</div>
@@ -476,12 +490,12 @@
         </div>
 
         <!-- POST IDEAS -->
-        <div id="post-ideas" class="card {% if user_tier != 'premium' %}locked{% endif %}">
-            {% if user_tier != 'premium' %}
+        <div id="post-ideas" class="card {% if not is_premium_or_trial %}locked{% endif %}">
+            {% if not is_premium_or_trial %}
             <div class="lock-overlay">
                 <div class="lock-icon">🔒</div>
-                <div class="lock-text">Premium Feature</div>
-                <button class="lock-btn" onclick="window.location.href('/subscribe')">Unlock</button>
+                <div class="lock-text">Premium Feature (Trial Expired)</div>
+                <button class="lock-btn" onclick="window.location.href='/subscribe'">Upgrade</button>
             </div>
             {% endif %}
 
@@ -492,8 +506,8 @@
             <div class="card-subtitle">Get 10 unique content ideas for your niche</div>
             
             <label>Your Niche</label>
-            <input type="text" id="ideas-niche" placeholder="e.g., digital marketing, fitness" {% if user_tier != 'premium' %}disabled{% endif %}>
-            <button class="btn-primary" id="ideas-btn" {% if user_tier != 'premium' %}disabled{% endif %}>Generate Ideas</button>
+            <input type="text" id="ideas-niche" placeholder="e.g., digital marketing, fitness" {% if not is_premium_or_trial %}disabled{% endif %}>
+            <button class="btn-primary" id="ideas-btn" {% if not is_premium_or_trial %}disabled{% endif %}>Generate Ideas</button>
             
             <div class="result-box" id="ideas-result">
                 <div class="result-label">Generated Ideas</div>
@@ -502,12 +516,12 @@
         </div>
 
         <!-- BIO GENERATOR -->
-        <div id="bio" class="card {% if user_tier != 'premium' %}locked{% endif %}">
-            {% if user_tier != 'premium' %}
+        <div id="bio" class="card {% if not is_premium_or_trial %}locked{% endif %}">
+            {% if not is_premium_or_trial %}
             <div class="lock-overlay">
                 <div class="lock-icon">🔒</div>
-                <div class="lock-text">Premium Feature</div>
-                <button class="lock-btn" onclick="window.location.href='/subscribe'">Unlock</button>
+                <div class="lock-text">Premium Feature (Trial Expired)</div>
+                <button class="lock-btn" onclick="window.location.href='/subscribe'">Upgrade</button>
             </div>
             {% endif %}
 
@@ -520,14 +534,14 @@
             <div class="row">
                 <div>
                     <label>Your Niche</label>
-                    <input type="text" id="bio-niche" placeholder="e.g., entrepreneur, coach" {% if user_tier != 'premium' %}disabled{% endif %}>
+                    <input type="text" id="bio-niche" placeholder="e.g., entrepreneur, coach" {% if not is_premium_or_trial %}disabled{% endif %}>
                 </div>
                 <div>
                     <label>Vibe</label>
-                    <input type="text" id="bio-vibe" placeholder="e.g., Professional & friendly" {% if user_tier != 'premium' %}disabled{% endif %}>
+                    <input type="text" id="bio-vibe" placeholder="e.g., Professional & friendly" {% if not is_premium_or_trial %}disabled{% endif %}>
                 </div>
             </div>
-            <button class="btn-primary" id="bio-btn" {% if user_tier != 'premium' %}disabled{% endif %}>Generate Bios</button>
+            <button class="btn-primary" id="bio-btn" {% if not is_premium_or_trial %}disabled{% endif %}>Generate Bios</button>
             
             <div class="result-box" id="bio-result">
                 <div class="result-label">Generated Bios</div>
@@ -536,12 +550,12 @@
         </div>
 
         <!-- CAROUSEL CAPTIONS -->
-        <div id="carousel" class="card {% if user_tier != 'premium' %}locked{% endif %}">
-            {% if user_tier != 'premium' %}
+        <div id="carousel" class="card {% if not is_premium_or_trial %}locked{% endif %}">
+            {% if not is_premium_or_trial %}
             <div class="lock-overlay">
                 <div class="lock-icon">🔒</div>
-                <div class="lock-text">Premium Feature</div>
-                <button class="lock-btn" onclick="window.location.href='/subscribe'">Unlock</button>
+                <div class="lock-text">Premium Feature (Trial Expired)</div>
+                <button class="lock-btn" onclick="window.location.href='/subscribe'">Upgrade</button>
             </div>
             {% endif %}
 
@@ -554,14 +568,14 @@
             <div class="row">
                 <div>
                     <label>Topic</label>
-                    <input type="text" id="carousel-topic" placeholder="What's your carousel about?" {% if user_tier != 'premium' %}disabled{% endif %}>
+                    <input type="text" id="carousel-topic" placeholder="What's your carousel about?" {% if not is_premium_or_trial %}disabled{% endif %}>
                 </div>
                 <div>
                     <label>Number of Slides</label>
-                    <input type="number" id="carousel-count" value="5" min="2" max="10" {% if user_tier != 'premium' %}disabled{% endif %}>
+                    <input type="number" id="carousel-count" value="5" min="2" max="10" {% if not is_premium_or_trial %}disabled{% endif %}>
                 </div>
             </div>
-            <button class="btn-primary" id="carousel-btn" {% if user_tier != 'premium' %}disabled{% endif %}>Generate Captions</button>
+            <button class="btn-primary" id="carousel-btn" {% if not is_premium_or_trial %}disabled{% endif %}>Generate Captions</button>
             
             <div class="result-box" id="carousel-result">
                 <div class="result-label">Generated Captions</div>
@@ -570,12 +584,12 @@
         </div>
 
         <!-- ENGAGEMENT HOOKS -->
-        <div id="hooks" class="card {% if user_tier != 'premium' %}locked{% endif %}">
-            {% if user_tier != 'premium' %}
+        <div id="hooks" class="card {% if not is_premium_or_trial %}locked{% endif %}">
+            {% if not is_premium_or_trial %}
             <div class="lock-overlay">
                 <div class="lock-icon">🔒</div>
-                <div class="lock-text">Premium Feature</div>
-                <button class="lock-btn" onclick="window.location.href='/subscribe'">Unlock</button>
+                <div class="lock-text">Premium Feature (Trial Expired)</div>
+                <button class="lock-btn" onclick="window.location.href='/subscribe'">Upgrade</button>
             </div>
             {% endif %}
 
@@ -588,14 +602,14 @@
             <div class="row">
                 <div>
                     <label>Content Type</label>
-                    <input type="text" id="hooks-type" placeholder="e.g., post, reel, story" {% if user_tier != 'premium' %}disabled{% endif %}>
+                    <input type="text" id="hooks-type" placeholder="e.g., post, reel, story" {% if not is_premium_or_trial %}disabled{% endif %}>
                 </div>
                 <div>
                     <label>Topic</label>
-                    <input type="text" id="hooks-topic" placeholder="What's your content about?" {% if user_tier != 'premium' %}disabled{% endif %}>
+                    <input type="text" id="hooks-topic" placeholder="What's your content about?" {% if not is_premium_or_trial %}disabled{% endif %}>
                 </div>
             </div>
-            <button class="btn-primary" id="hooks-btn" {% if user_tier != 'premium' %}disabled{% endif %}>Generate Hooks</button>
+            <button class="btn-primary" id="hooks-btn" {% if not is_premium_or_trial %}disabled{% endif %}>Generate Hooks</button>
             
             <div class="result-box" id="hooks-result">
                 <div class="result-label">Generated Hooks</div>
