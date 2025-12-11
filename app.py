@@ -97,40 +97,45 @@ def cancel():
 @app.route("/signup", methods=["GET", "POST"])
 def signup():
     if request.method == "POST":
-        email = request.form.get("email")
-        password = request.form.get("password")
+        try:
+            email = request.form.get("email")
+            password = request.form.get("password")
 
-        # Validate input
-        if not email or not password:
-            return render_template("signup.html", error="Email and password are required.")
-        if len(password) < 6:
-            return render_template("signup.html", error="Password must be at least 6 characters.")
+            # Validate input
+            if not email or not password:
+                return render_template("signup.html", error="Email and password are required.")
+            if len(password) < 6:
+                return render_template("signup.html", error="Password must be at least 6 characters.")
 
-        response = supabase.auth.sign_up({
-            "email": email,
-            "password": password,
-            "options": {
-                "email_redirect_to": (
-                    "https://aiassistantpros.onrender.com/login"
-                )
-            }
-        })
+            response = supabase.auth.sign_up({
+                "email": email,
+                "password": password,
+                "options": {
+                    "email_redirect_to": (
+                        "https://aiassistantpros.onrender.com/login"
+                    )
+                }
+            })
 
-        # Normalize response (dict or object)
-        error = None
-        if isinstance(response, dict):
-            error = response.get("error")
-        else:
-            error = getattr(response, "error", None)
-
-        if error:
-            if isinstance(error, dict) and error.get("message"):
-                error_msg = error.get("message")
+            # Normalize response (dict or object)
+            error = None
+            if isinstance(response, dict):
+                error = response.get("error")
             else:
-                error_msg = str(error)
-            return render_template("signup.html", error=error_msg)
-        else:
-            return redirect("/signup-success")
+                error = getattr(response, "error", None)
+
+            if error:
+                if isinstance(error, dict) and error.get("message"):
+                    error_msg = error.get("message")
+                else:
+                    error_msg = str(error)
+                return render_template("signup.html", error=error_msg)
+            else:
+                return redirect("/signup-success")
+        except Exception as e:
+            error_msg = f"Signup error: {str(e)}"
+            print(f"[ERROR] Signup route exception: {error_msg}")
+            return render_template("signup.html", error="An error occurred during signup. Please try again.")
 
     # Handles GET requests — user opening page normally
     return render_template("signup.html")
@@ -140,42 +145,47 @@ def signup():
 @app.route("/login", methods=["GET", "POST"])
 def login():
     if request.method == "POST":
-        email = request.form.get("email")
-        password = request.form.get("password")
+        try:
+            email = request.form.get("email")
+            password = request.form.get("password")
 
-        # Attempt login
-        result = supabase.auth.sign_in_with_password({
-            "email": email,
-            "password": password
-        })
+            # Attempt login
+            result = supabase.auth.sign_in_with_password({
+                "email": email,
+                "password": password
+            })
 
-        # Normalize response
-        error = None
-        data = None
-        if isinstance(result, dict):
-            error = result.get("error")
-            data = result.get("data")
-        else:
-            error = getattr(result, "error", None)
-            data = getattr(result, "data", None)
-
-        if error:
-            if isinstance(error, dict) and error.get("message"):
-                msg = error.get("message")
+            # Normalize response
+            error = None
+            data = None
+            if isinstance(result, dict):
+                error = result.get("error")
+                data = result.get("data")
             else:
-                msg = str(error)
-            return render_template("login.html", error=msg)
+                error = getattr(result, "error", None)
+                data = getattr(result, "data", None)
 
-        # On success, store a consistent user object in the session
-        user_email = None
-        if (isinstance(data, dict) and data.get("user") and
-                data["user"].get("email")):
-            user_email = data["user"]["email"]
-        else:
-            user_email = email
+            if error:
+                if isinstance(error, dict) and error.get("message"):
+                    msg = error.get("message")
+                else:
+                    msg = str(error)
+                return render_template("login.html", error=msg)
 
-        session["user"] = {"email": user_email}
-        return redirect("/dashboard")
+            # On success, store a consistent user object in the session
+            user_email = None
+            if (isinstance(data, dict) and data.get("user") and
+                    data["user"].get("email")):
+                user_email = data["user"]["email"]
+            else:
+                user_email = email
+
+            session["user"] = {"email": user_email}
+            return redirect("/dashboard")
+        except Exception as e:
+            error_msg = f"Login error: {str(e)}"
+            print(f"[ERROR] Login route exception: {error_msg}")
+            return render_template("login.html", error="An error occurred during login. Please try again.")
 
     # Handle GET requests
     return render_template("login.html")
@@ -234,12 +244,32 @@ def generate_caption():
 
 @app.route("/dashboard")
 def dashboard():
-    if "user" not in session:
-        return redirect("/login")
+    try:
+        if "user" not in session:
+            return redirect("/login")
 
-    user = session.get("user") or {}
-    user_email = user.get("email") if isinstance(user, dict) else None
-    return render_template("dashboard.html", user_email=user_email)
+        user = session.get("user") or {}
+        user_email = user.get("email") if isinstance(user, dict) else None
+        return render_template("dashboard.html", user_email=user_email)
+    except Exception as e:
+        error_msg = f"Dashboard error: {str(e)}"
+        print(f"[ERROR] Dashboard route exception: {error_msg}")
+        return render_template("login.html", error="An error occurred. Please log in again.")
+
+
+# ==========================
+# ERROR HANDLERS
+# ==========================
+
+@app.errorhandler(500)
+def internal_error(error):
+    print(f"[ERROR] 500 Internal Server Error: {str(error)}")
+    return render_template("500.html", error=str(error)), 500
+
+
+@app.errorhandler(404)
+def not_found(error):
+    return render_template("404.html"), 404
 
 
 # ==========================
@@ -498,3 +528,12 @@ def generate_premium_caption():
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+
+# =====================================================
+# RUN THE APP
+# =====================================================
+if __name__ == "__main__":
+    # Don't use debug=True in production
+    port = int(os.getenv("PORT", 5000))
+    app.run(host="0.0.0.0", port=port, debug=False)
