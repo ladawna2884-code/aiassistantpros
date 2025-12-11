@@ -258,6 +258,9 @@
         <a class="nav-link" data-tool="hashtag-tool">Hashtag Engine</a>
         <a class="nav-link" data-tool="script-tool">Reel Script Writer</a>
         <a class="nav-link" data-tool="ideas-tool">Post & Reel Ideas</a>
+        <a class="nav-link" data-tool="bio-tool">Bio Generator</a>
+        <a class="nav-link" data-tool="carousel-tool">Carousel Captions</a>
+        <a class="nav-link" data-tool="hooks-tool">Engagement Hooks</a>
 
         <div class="nav-section-title">Account</div>
         <div style="font-size: 12px; color:#9ca3af;">
@@ -439,6 +442,109 @@
                 </div>
             </div>
         </section>
+
+        <!-- Bio Generator -->
+        <section id="bio-tool" class="tool">
+            <div class="card">
+                <div class="card-title">
+                    Bio Generator
+                    <span class="pill">Premium</span>
+                </div>
+                <div class="card-subtitle">
+                    Create 3 unique, engaging social media bios optimized for clicks and followers.
+                </div>
+
+                <label for="bio-niche">What do you do or sell?</label>
+                <textarea id="bio-niche" placeholder="Example: AI content creator, sustainable fashion brand, fitness coach, web designer"></textarea>
+
+                <label for="bio-vibe">Vibe / tone</label>
+                <select id="bio-vibe">
+                    <option>Professional & friendly</option>
+                    <option>Casual & fun</option>
+                    <option>Bold & confident</option>
+                    <option>Witty & clever</option>
+                    <option>Inspirational & motivational</option>
+                </select>
+
+                <button class="btn-primary" id="bio-generate-btn">
+                    Generate 3 Bios
+                </button>
+
+                <div id="bio-result" class="result-box" style="display:none;">
+                    <div class="result-label">Bio variations</div>
+                    <div id="bio-text"></div>
+                    <div class="hint">Tip: copy and test different bios to see which performs best.</div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Carousel Captions -->
+        <section id="carousel-tool" class="tool">
+            <div class="card">
+                <div class="card-title">
+                    Carousel Caption Set Generator
+                    <span class="pill">Premium</span>
+                </div>
+                <div class="card-subtitle">
+                    Generate punchy, engaging captions for each slide in your carousel post.
+                </div>
+
+                <label for="carousel-topic">What's your carousel about?</label>
+                <textarea id="carousel-topic" placeholder="Example: 5 tips for better Instagram captions, or step-by-step product unboxing"></textarea>
+
+                <label for="carousel-count">Number of slides</label>
+                <select id="carousel-count">
+                    <option value="3">3 slides</option>
+                    <option value="5" selected>5 slides</option>
+                    <option value="7">7 slides</option>
+                    <option value="10">10 slides</option>
+                </select>
+
+                <button class="btn-primary" id="carousel-generate-btn">
+                    Generate Carousel Captions
+                </button>
+
+                <div id="carousel-result" class="result-box" style="display:none;">
+                    <div class="result-label">Carousel captions</div>
+                    <div id="carousel-text"></div>
+                    <div class="hint">Copy each slide caption and use the same image collection for consistency.</div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Engagement Hooks -->
+        <section id="hooks-tool" class="tool">
+            <div class="card">
+                <div class="card-title">
+                    Engagement Hook Generator
+                    <span class="pill">Premium</span>
+                </div>
+                <div class="card-subtitle">
+                    Start your post with a hook that sparks conversation and boosts engagement.
+                </div>
+
+                <label for="hooks-type">Content type</label>
+                <select id="hooks-type">
+                    <option>Reel / Video</option>
+                    <option>Carousel / Post</option>
+                    <option>Story</option>
+                    <option>Long-form caption</option>
+                </select>
+
+                <label for="hooks-topic">What's the main topic?</label>
+                <textarea id="hooks-topic" placeholder="Example: productivity tips, skincare routine, freelancing advice, cooking hack"></textarea>
+
+                <button class="btn-primary" id="hooks-generate-btn">
+                    Generate 5 Hooks
+                </button>
+
+                <div id="hooks-result" class="result-box" style="display:none;">
+                    <div class="result-label">Engagement hooks</div>
+                    <div id="hooks-text"></div>
+                    <div class="hint">Pick your favorite hook and build your caption or script around it.</div>
+                </div>
+            </div>
+        </section>
     </main>
 </div>
 
@@ -561,6 +667,75 @@
 
             if (data.ideas) {
                 resultText.textContent = data.ideas;
+            } else {
+                resultText.textContent = data.error || 'Something went wrong.';
+            }
+        } catch (err) {
+            resultText.textContent = 'Error talking to the server.';
+        }
+    });
+
+    // Bio Generator
+    document.getElementById('bio-generate-btn').addEventListener('click', async () => {
+        const niche = document.getElementById('bio-niche').value;
+        const vibe = document.getElementById('bio-vibe').value;
+
+        const resultBox = document.getElementById('bio-result');
+        const resultText = document.getElementById('bio-text');
+        resultBox.style.display = 'block';
+        resultText.textContent = 'Creating bios…';
+
+        try {
+            const data = await postJSON('/api/bio-generator', { niche, vibe });
+
+            if (data.bios) {
+                resultText.textContent = data.bios;
+            } else {
+                resultText.textContent = data.error || 'Something went wrong.';
+            }
+        } catch (err) {
+            resultText.textContent = 'Error talking to the server.';
+        }
+    });
+
+    // Carousel Captions
+    document.getElementById('carousel-generate-btn').addEventListener('click', async () => {
+        const topic = document.getElementById('carousel-topic').value;
+        const slide_count = document.getElementById('carousel-count').value;
+
+        const resultBox = document.getElementById('carousel-result');
+        const resultText = document.getElementById('carousel-text');
+        resultBox.style.display = 'block';
+        resultText.textContent = 'Crafting captions…';
+
+        try {
+            const data = await postJSON('/api/carousel-captions', { topic, slide_count });
+
+            if (data.captions) {
+                resultText.textContent = data.captions;
+            } else {
+                resultText.textContent = data.error || 'Something went wrong.';
+            }
+        } catch (err) {
+            resultText.textContent = 'Error talking to the server.';
+        }
+    });
+
+    // Engagement Hooks
+    document.getElementById('hooks-generate-btn').addEventListener('click', async () => {
+        const content_type = document.getElementById('hooks-type').value;
+        const topic = document.getElementById('hooks-topic').value;
+
+        const resultBox = document.getElementById('hooks-result');
+        const resultText = document.getElementById('hooks-text');
+        resultBox.style.display = 'block';
+        resultText.textContent = 'Generating hooks…';
+
+        try {
+            const data = await postJSON('/api/engagement-hooks', { content_type, topic });
+
+            if (data.hooks) {
+                resultText.textContent = data.hooks;
             } else {
                 resultText.textContent = data.error || 'Something went wrong.';
             }

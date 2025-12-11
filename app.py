@@ -100,6 +100,12 @@ def signup():
         email = request.form.get("email")
         password = request.form.get("password")
 
+        # Validate input
+        if not email or not password:
+            return render_template("signup.html", error="Email and password are required.")
+        if len(password) < 6:
+            return render_template("signup.html", error="Password must be at least 6 characters.")
+
         response = supabase.auth.sign_up({
             "email": email,
             "password": password,
@@ -110,8 +116,18 @@ def signup():
             }
         })
 
-        if "error" in response and response["error"]:
-            error_msg = response["error"]["message"]
+        # Normalize response (dict or object)
+        error = None
+        if isinstance(response, dict):
+            error = response.get("error")
+        else:
+            error = getattr(response, "error", None)
+
+        if error:
+            if isinstance(error, dict) and error.get("message"):
+                error_msg = error.get("message")
+            else:
+                error_msg = str(error)
             return render_template("signup.html", error=error_msg)
         else:
             return redirect("/signup-success")
@@ -345,6 +361,104 @@ def api_post_ideas():
         )
         ideas = response.choices[0].message.content.strip()
         return jsonify({"ideas": ideas})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/bio-generator", methods=["POST"])
+def api_bio_generator():
+    data = request.get_json() or {}
+    niche = data.get("niche", "")
+    vibe = data.get("vibe", "Professional & friendly")
+
+    system = (
+        "You are an expert at writing compelling, concise social media bios. "
+        "Write 3 unique bio variations, each under 150 characters. "
+        "Include relevant emojis and make them memorable and action-oriented."
+    )
+
+    user_prompt = (
+        f"Niche: {niche}\n"
+        f"Vibe: {vibe}\n"
+        "Create 3 unique bio variations for this creator."
+    )
+
+    try:
+        response = client.chat.completions.create(
+            model="gpt-3.5-turbo",
+            messages=[
+                {"role": "system", "content": system},
+                {"role": "user", "content": user_prompt},
+            ],
+            temperature=0.85,
+        )
+        bios = response.choices[0].message.content.strip()
+        return jsonify({"bios": bios})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/carousel-captions", methods=["POST"])
+def api_carousel_captions():
+    data = request.get_json() or {}
+    topic = data.get("topic", "")
+    slide_count = data.get("slide_count", "5")
+
+    system = (
+        "You are a carousel post expert. "
+        f"Write {slide_count} short, punchy captions for carousel slides. "
+        "Each caption should be 1-2 sentences max. "
+        "Make them educational, entertaining, or inspiring. "
+        "Use relevant emojis. Start each with a slide number."
+    )
+
+    user_prompt = f"Topic: {topic}\nCreate captions for a {slide_count}-slide carousel."
+
+    try:
+        response = client.chat.completions.create(
+            model="gpt-3.5-turbo",
+            messages=[
+                {"role": "system", "content": system},
+                {"role": "user", "content": user_prompt},
+            ],
+            temperature=0.9,
+        )
+        captions = response.choices[0].message.content.strip()
+        return jsonify({"captions": captions})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/engagement-hooks", methods=["POST"])
+def api_engagement_hooks():
+    data = request.get_json() or {}
+    content_type = data.get("content_type", "")
+    topic = data.get("topic", "")
+
+    system = (
+        "You are an expert at creating engagement hooks that get comments. "
+        "Generate 5 question-based or statement-based opening hooks "
+        "that are designed to spark conversation and boost engagement. "
+        "Make them relatable, controversial (but not offensive), or curious."
+    )
+
+    user_prompt = (
+        f"Content Type: {content_type}\n"
+        f"Topic: {topic}\n"
+        "Create 5 engagement hooks to start a post or reel."
+    )
+
+    try:
+        response = client.chat.completions.create(
+            model="gpt-3.5-turbo",
+            messages=[
+                {"role": "system", "content": system},
+                {"role": "user", "content": user_prompt},
+            ],
+            temperature=0.9,
+        )
+        hooks = response.choices[0].message.content.strip()
+        return jsonify({"hooks": hooks})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
