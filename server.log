@@ -1,0 +1,17 @@
+[INFO] App initialized successfully
+ * Serving Flask app 'app'
+ * Debug mode: off
+[31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:5002
+ * Running on http://192.168.1.104:5002
+[33mPress CTRL+C to quit[0m
+127.0.0.1 - - [11/Dec/2025 08:54:44] "GET / HTTP/1.1" 200 -
+127.0.0.1 - - [11/Dec/2025 08:54:44] "[33mGET /favicon.ico HTTP/1.1[0m" 404 -
+127.0.0.1 - - [11/Dec/2025 08:55:00] "GET /login HTTP/1.1" 200 -
+127.0.0.1 - - [11/Dec/2025 08:55:12] "GET /signup HTTP/1.1" 200 -
+127.0.0.1 - - [11/Dec/2025 08:55:37] "POST /signup HTTP/1.1" 200 -
+127.0.0.1 - - [11/Dec/2025 08:55:37] "[33mGET /apple-touch-icon-precomposed.png HTTP/1.1[0m" 404 -
+127.0.0.1 - - [11/Dec/2025 08:55:37] "[33mGET /apple-touch-icon.png HTTP/1.1[0m" 404 -
+127.0.0.1 - - [11/Dec/2025 08:55:41] "GET /login HTTP/1.1" 200 -
+127.0.0.1 - - [11/Dec/2025 08:55:52] "POST /login HTTP/1.1" 200 -

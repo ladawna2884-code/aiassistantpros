@@ -1,3 +1,4 @@
+
 from flask import Flask, render_template, request, redirect, session, jsonify
 from supabase import create_client, Client
 from openai import OpenAI
@@ -23,8 +24,15 @@ if not SUPABASE_URL or not SUPABASE_KEY:
     print("[WARNING] Supabase credentials not fully configured")
     print(f"  SUPABASE_URL: {'✓' if SUPABASE_URL else '✗'}")
     print(f"  SUPABASE_KEY: {'✓' if SUPABASE_KEY else '✗'}")
+    # Use dummy values for now (app will still initialize but auth/DB will fail gracefully)
+    SUPABASE_URL = SUPABASE_URL or "https://placeholder.supabase.co"
+    SUPABASE_KEY = SUPABASE_KEY or "placeholder-key"
 
-supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
+try:
+    supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
+except Exception as e:
+    print(f"[WARNING] Failed to initialize Supabase client: {str(e)}")
+    supabase = None
 
 # STRIPE CONFIG
 stripe.api_key = os.getenv("STRIPE_SECRET_KEY") or os.getenv("STRIPE_API_KEY")
@@ -174,6 +182,10 @@ def signup():
             if len(password) < 6:
                 return render_template("signup.html", error="Password must be at least 6 characters.")
 
+            # Check if Supabase is available
+            if not supabase:
+                return render_template("signup.html", error="Authentication service not configured. Please contact support.")
+
             response = supabase.auth.sign_up({
                 "email": email,
                 "password": password,
@@ -243,9 +255,9 @@ def login():
                 return render_template("login.html", error="Email and password are required.")
 
             # Ensure Supabase is configured
-            if not SUPABASE_URL or not SUPABASE_KEY:
-                print("[ERROR] Supabase credentials missing when attempting login")
-                return render_template("login.html", error="Authentication service unavailable. Please try later.")
+            if not supabase or not SUPABASE_URL or not SUPABASE_KEY:
+                print("[ERROR] Supabase client not initialized when attempting login")
+                return render_template("login.html", error="Authentication service not configured. Please contact support.")
 
             # Attempt login; catch network/SDK errors explicitly
             try:
