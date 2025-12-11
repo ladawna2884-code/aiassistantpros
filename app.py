@@ -119,10 +119,17 @@ def signup():
 
             # Normalize response (dict or object)
             error = None
+            user_id = None
             if isinstance(response, dict):
                 error = response.get("error")
+                user = response.get("user")
+                if user:
+                    user_id = user.get("id") if isinstance(user, dict) else getattr(user, "id", None)
             else:
                 error = getattr(response, "error", None)
+                user = getattr(response, "user", None)
+                if user:
+                    user_id = getattr(user, "id", None)
 
             if error:
                 if isinstance(error, dict) and error.get("message"):
@@ -131,6 +138,19 @@ def signup():
                     error_msg = str(error)
                 return render_template("signup.html", error=error_msg)
             else:
+                # Create user profile in database as FREE tier by default
+                if user_id:
+                    try:
+                        supabase.table("users").insert({
+                            "id": user_id,
+                            "email": email,
+                            "tier": "free",
+                            "created_at": "now()"
+                        }).execute()
+                    except Exception as db_error:
+                        print(f"[WARNING] Could not create user profile: {str(db_error)}")
+                        # Continue anyway - profile will be created on first login
+                
                 return redirect("/signup-success")
         except Exception as e:
             error_msg = f"Signup error: {str(e)}"
@@ -174,13 +194,31 @@ def login():
 
             # On success, store a consistent user object in the session
             user_email = None
+            user_id = None
             if (isinstance(data, dict) and data.get("user") and
                     data["user"].get("email")):
                 user_email = data["user"]["email"]
+                user_id = data["user"].get("id")
             else:
                 user_email = email
 
-            session["user"] = {"email": user_email}
+            # Fetch user tier from database
+            user_tier = "free"  # Default to free
+            try:
+                if user_id:
+                    user_data = supabase.table("users").select("tier").eq("id", user_id).execute()
+                    if user_data and user_data.data and len(user_data.data) > 0:
+                        user_tier = user_data.data[0].get("tier", "free")
+                else:
+                    # Fallback: search by email
+                    user_data = supabase.table("users").select("tier").eq("email", user_email).execute()
+                    if user_data and user_data.data and len(user_data.data) > 0:
+                        user_tier = user_data.data[0].get("tier", "free")
+            except Exception as db_error:
+                print(f"[WARNING] Could not fetch user tier: {str(db_error)}")
+                user_tier = "free"  # Default to free if lookup fails
+
+            session["user"] = {"email": user_email, "tier": user_tier, "id": user_id}
             return redirect("/dashboard")
         except Exception as e:
             error_msg = f"Login error: {str(e)}"
@@ -250,11 +288,30 @@ def dashboard():
 
         user = session.get("user") or {}
         user_email = user.get("email") if isinstance(user, dict) else None
-        return render_template("dashboard.html", user_email=user_email)
+        user_tier = user.get("tier", "free") if isinstance(user, dict) else "free"
+        
+        return render_template("dashboard_unified.html", user_email=user_email, user_tier=user_tier)
     except Exception as e:
         error_msg = f"Dashboard error: {str(e)}"
         print(f"[ERROR] Dashboard route exception: {error_msg}")
         return render_template("login.html", error="An error occurred. Please log in again.")
+
+
+# Helper to check if user is premium
+def is_premium():
+    if "user" not in session:
+        return False
+    user = session.get("user") or {}
+    tier = user.get("tier", "free") if isinstance(user, dict) else "free"
+    return tier == "premium"
+
+
+# Redirect free users to subscribe
+@app.route("/subscribe")
+def subscribe():
+    if "user" not in session:
+        return redirect("/login")
+    return redirect("/create-checkout-session", code=303)
 
 
 # ==========================
@@ -278,6 +335,10 @@ def not_found(error):
 
 @app.route("/api/premium-caption", methods=["POST"])
 def api_premium_caption():
+    # Check if user is premium
+    if not is_premium():
+        return jsonify({"error": "This feature requires a premium subscription. Please subscribe to use it."}), 403
+    
     data = request.get_json() or {}
     description = data.get("description", "")
     platform = data.get("platform", "Instagram")
@@ -313,6 +374,10 @@ def api_premium_caption():
 
 @app.route("/api/hashtags", methods=["POST"])
 def api_hashtags():
+    # Check if user is premium
+    if not is_premium():
+        return jsonify({"error": "This feature requires a premium subscription. Please subscribe to use it."}), 403
+    
     data = request.get_json() or {}
     topic = data.get("topic", "")
     platform = data.get("platform", "")
@@ -344,6 +409,10 @@ def api_hashtags():
 
 @app.route("/api/reel-script", methods=["POST"])
 def api_reel_script():
+    # Check if user is premium
+    if not is_premium():
+        return jsonify({"error": "This feature requires a premium subscription. Please subscribe to use it."}), 403
+    
     data = request.get_json() or {}
     goal = data.get("goal", "")
 
@@ -371,6 +440,10 @@ def api_reel_script():
 
 @app.route("/api/post-ideas", methods=["POST"])
 def api_post_ideas():
+    # Check if user is premium
+    if not is_premium():
+        return jsonify({"error": "This feature requires a premium subscription. Please subscribe to use it."}), 403
+    
     data = request.get_json() or {}
     niche = data.get("niche", "")
 
@@ -397,6 +470,10 @@ def api_post_ideas():
 
 @app.route("/api/bio-generator", methods=["POST"])
 def api_bio_generator():
+    # Check if user is premium
+    if not is_premium():
+        return jsonify({"error": "This feature requires a premium subscription. Please subscribe to use it."}), 403
+    
     data = request.get_json() or {}
     niche = data.get("niche", "")
     vibe = data.get("vibe", "Professional & friendly")
@@ -430,6 +507,10 @@ def api_bio_generator():
 
 @app.route("/api/carousel-captions", methods=["POST"])
 def api_carousel_captions():
+    # Check if user is premium
+    if not is_premium():
+        return jsonify({"error": "This feature requires a premium subscription. Please subscribe to use it."}), 403
+    
     data = request.get_json() or {}
     topic = data.get("topic", "")
     slide_count = data.get("slide_count", "5")
@@ -461,6 +542,10 @@ def api_carousel_captions():
 
 @app.route("/api/engagement-hooks", methods=["POST"])
 def api_engagement_hooks():
+    # Check if user is premium
+    if not is_premium():
+        return jsonify({"error": "This feature requires a premium subscription. Please subscribe to use it."}), 403
+    
     data = request.get_json() or {}
     content_type = data.get("content_type", "")
     topic = data.get("topic", "")

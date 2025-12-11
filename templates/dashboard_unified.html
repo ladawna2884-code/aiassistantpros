@@ -1,0 +1,808 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8" />
+    <title>AI Assistant Pros – Dashboard</title>
+    <style>
+        body {
+            margin: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
+            background: #f5f7fb;
+            color: #111827;
+        }
+
+        .layout {
+            display: grid;
+            grid-template-columns: 240px 1fr;
+            min-height: 100vh;
+        }
+
+        .sidebar {
+            background: #0f172a;
+            color: #e5e7eb;
+            padding: 24px 16px;
+            box-sizing: border-box;
+            position: sticky;
+            top: 0;
+            height: 100vh;
+            overflow-y: auto;
+        }
+
+        .logo {
+            font-size: 20px;
+            font-weight: 700;
+            margin-bottom: 24px;
+        }
+
+        .logo span {
+            color: #38bdf8;
+        }
+
+        .tier-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 999px;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            margin-bottom: 16px;
+            letter-spacing: 0.12em;
+        }
+
+        .tier-badge.free {
+            background: #fef08a;
+            color: #7c2d12;
+        }
+
+        .tier-badge.premium {
+            background: #c084fc;
+            color: #581c87;
+        }
+
+        .nav-section-title {
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.12em;
+            color: #9ca3af;
+            margin: 16px 0 8px;
+        }
+
+        .nav-link {
+            display: block;
+            padding: 8px 10px;
+            border-radius: 6px;
+            font-size: 14px;
+            margin-bottom: 4px;
+            cursor: pointer;
+            color: #e5e7eb;
+            text-decoration: none;
+            border-left: 3px solid transparent;
+        }
+
+        .nav-link:hover {
+            background: #111827;
+        }
+
+        .nav-link.active {
+            background: #1d4ed8;
+            border-left-color: #38bdf8;
+        }
+
+        .upgrade-btn {
+            width: 100%;
+            margin-top: auto;
+            padding: 10px;
+            background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            margin-top: 16px;
+        }
+
+        .upgrade-btn:hover {
+            opacity: 0.9;
+        }
+
+        .main {
+            padding: 24px 32px 40px;
+            box-sizing: border-box;
+        }
+
+        .top-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
+        }
+
+        .top-bar-title {
+            font-size: 22px;
+            font-weight: 600;
+        }
+
+        .badge {
+            font-size: 11px;
+            padding: 4px 8px;
+            border-radius: 999px;
+            background: #dbeafe;
+            color: #1d4ed8;
+            margin-left: 8px;
+        }
+
+        .top-bar-subtitle {
+            font-size: 13px;
+            color: #6b7280;
+            margin-top: 4px;
+        }
+
+        .card {
+            background: white;
+            border-radius: 16px;
+            padding: 20px 20px 18px;
+            box-shadow: 0 10px 25px rgba(15, 23, 42, 0.07);
+            box-sizing: border-box;
+            margin-bottom: 20px;
+            position: relative;
+        }
+
+        .card.locked {
+            opacity: 0.7;
+            background: #f9f9f9;
+            position: relative;
+        }
+
+        .card.locked::after {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(255, 255, 255, 0.5);
+            border-radius: 16px;
+        }
+
+        .lock-overlay {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 10;
+            text-align: center;
+            display: none;
+        }
+
+        .card.locked .lock-overlay {
+            display: block;
+        }
+
+        .lock-icon {
+            font-size: 32px;
+            margin-bottom: 8px;
+        }
+
+        .lock-text {
+            font-size: 13px;
+            color: #6b7280;
+            margin-bottom: 10px;
+        }
+
+        .lock-btn {
+            background: #3b82f6;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-size: 12px;
+            cursor: pointer;
+            font-weight: 500;
+        }
+
+        .lock-btn:hover {
+            background: #2563eb;
+        }
+
+        .card-title {
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+
+        .card-subtitle {
+            font-size: 13px;
+            color: #6b7280;
+            margin-bottom: 16px;
+        }
+
+        .premium-label {
+            display: inline-block;
+            background: #ddd6fe;
+            color: #5b21b6;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 10px;
+            font-weight: 600;
+            text-transform: uppercase;
+            margin-left: 8px;
+        }
+
+        label {
+            font-size: 13px;
+            display: block;
+            margin-bottom: 4px;
+            color: #374151;
+        }
+
+        textarea, input, select {
+            width: 100%;
+            box-sizing: border-box;
+            border-radius: 10px;
+            border: 1px solid #d1d5db;
+            padding: 10px 12px;
+            font-size: 13px;
+            font-family: inherit;
+            resize: vertical;
+        }
+
+        textarea {
+            min-height: 90px;
+        }
+
+        .row {
+            display: flex;
+            gap: 12px;
+            margin-top: 10px;
+        }
+
+        .row > div {
+            flex: 1;
+        }
+
+        .btn-primary {
+            margin-top: 14px;
+            background: #2563eb;
+            color: white;
+            border: none;
+            border-radius: 999px;
+            height: 40px;
+            padding: 0 20px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+        }
+
+        .btn-primary:hover {
+            background: #1d4ed8;
+        }
+
+        .btn-primary:disabled {
+            background: #9ca3af;
+            cursor: not-allowed;
+        }
+
+        .result-box {
+            margin-top: 14px;
+            border-radius: 12px;
+            background: #f9fafb;
+            padding: 12px 14px;
+            font-size: 13px;
+            border: 1px solid #e5e7eb;
+            white-space: pre-wrap;
+            display: none;
+        }
+
+        .result-label {
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.12em;
+            color: #9ca3af;
+            margin-bottom: 4px;
+        }
+
+        .tool-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+
+        @media (max-width: 1200px) {
+            .tool-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .logout-link {
+            color: #e5e7eb;
+            text-decoration: none;
+            font-size: 12px;
+            padding: 8px 10px;
+            display: block;
+            border-radius: 6px;
+            margin-top: 16px;
+        }
+
+        .logout-link:hover {
+            background: #111827;
+        }
+    </style>
+</head>
+<body>
+
+<div class="layout">
+    <!-- SIDEBAR -->
+    <div class="sidebar">
+        <div class="logo">AI<span>Pro</span></div>
+        
+        <div class="tier-badge {% if user_tier == 'premium' %}premium{% else %}free{% endif %}">
+            {{ user_tier }} tier
+        </div>
+
+        <div class="nav-section-title">Features</div>
+        <a href="#caption" class="nav-link active">Free Caption</a>
+        <a href="#premium-caption" class="nav-link">Premium Caption</a>
+        <a href="#hashtags" class="nav-link">Hashtags</a>
+        <a href="#reel-script" class="nav-link">Reel Script</a>
+        <a href="#post-ideas" class="nav-link">Post Ideas</a>
+        <a href="#bio" class="nav-link">Bio Generator</a>
+        <a href="#carousel" class="nav-link">Carousel Captions</a>
+        <a href="#hooks" class="nav-link">Engagement Hooks</a>
+
+        {% if user_tier == 'free' %}
+        <a href="/subscribe" class="upgrade-btn">Upgrade to Premium ✨</a>
+        {% endif %}
+
+        <a href="/logout" class="logout-link">← Logout</a>
+    </div>
+
+    <!-- MAIN CONTENT -->
+    <div class="main">
+        <div class="top-bar">
+            <div>
+                <div class="top-bar-title">Dashboard</div>
+                <div class="top-bar-subtitle">Welcome, {{ user_email }}</div>
+            </div>
+        </div>
+
+        <!-- FREE CAPTION (Always Available) -->
+        <div id="caption" class="card">
+            <div class="card-title">Free Caption Generator</div>
+            <div class="card-subtitle">Create a short Instagram caption</div>
+            
+            <label>Describe your content</label>
+            <textarea id="caption-text" placeholder="What's your post about?"></textarea>
+            <button class="btn-primary" id="caption-btn">Generate Caption</button>
+            
+            <div class="result-box" id="caption-result">
+                <div class="result-label">Generated Caption</div>
+                <div id="caption-text-result"></div>
+            </div>
+        </div>
+
+        <!-- PREMIUM CAPTION -->
+        <div id="premium-caption" class="card {% if user_tier != 'premium' %}locked{% endif %}">
+            {% if user_tier != 'premium' %}
+            <div class="lock-overlay">
+                <div class="lock-icon">🔒</div>
+                <div class="lock-text">Premium Feature</div>
+                <button class="lock-btn" onclick="window.location.href='/subscribe'">Unlock</button>
+            </div>
+            {% endif %}
+
+            <div class="card-title">
+                Premium Caption Generator
+                <span class="premium-label">Premium</span>
+            </div>
+            <div class="card-subtitle">Create longer, creative captions with emojis</div>
+            
+            <label>Describe your content</label>
+            <textarea id="premium-caption-text" placeholder="What's your post about?" {% if user_tier != 'premium' %}disabled{% endif %}></textarea>
+            <button class="btn-primary" id="premium-caption-btn" {% if user_tier != 'premium' %}disabled{% endif %}>Generate Caption</button>
+            
+            <div class="result-box" id="premium-caption-result">
+                <div class="result-label">Generated Caption</div>
+                <div id="premium-caption-text-result"></div>
+            </div>
+        </div>
+
+        <!-- HASHTAGS -->
+        <div id="hashtags" class="card {% if user_tier != 'premium' %}locked{% endif %}">
+            {% if user_tier != 'premium' %}
+            <div class="lock-overlay">
+                <div class="lock-icon">🔒</div>
+                <div class="lock-text">Premium Feature</div>
+                <button class="lock-btn" onclick="window.location.href='/subscribe'">Unlock</button>
+            </div>
+            {% endif %}
+
+            <div class="card-title">
+                Hashtag Generator
+                <span class="premium-label">Premium</span>
+            </div>
+            <div class="card-subtitle">Generate niche hashtags for your posts</div>
+            
+            <div class="row">
+                <div>
+                    <label>Topic</label>
+                    <input type="text" id="hashtags-topic" placeholder="e.g., fitness, photography" {% if user_tier != 'premium' %}disabled{% endif %}>
+                </div>
+                <div>
+                    <label>Platform</label>
+                    <input type="text" id="hashtags-platform" placeholder="e.g., Instagram, TikTok" {% if user_tier != 'premium' %}disabled{% endif %}>
+                </div>
+                <div>
+                    <label>Account Size</label>
+                    <select id="hashtags-size" {% if user_tier != 'premium' %}disabled{% endif %}>
+                        <option>Small (0-10K)</option>
+                        <option>Medium (10K-100K)</option>
+                        <option>Large (100K+)</option>
+                    </select>
+                </div>
+            </div>
+            <button class="btn-primary" id="hashtags-btn" {% if user_tier != 'premium' %}disabled{% endif %}>Generate Hashtags</button>
+            
+            <div class="result-box" id="hashtags-result">
+                <div class="result-label">Generated Hashtags</div>
+                <div id="hashtags-text-result"></div>
+            </div>
+        </div>
+
+        <!-- REEL SCRIPT -->
+        <div id="reel-script" class="card {% if user_tier != 'premium' %}locked{% endif %}">
+            {% if user_tier != 'premium' %}
+            <div class="lock-overlay">
+                <div class="lock-icon">🔒</div>
+                <div class="lock-text">Premium Feature</div>
+                <button class="lock-btn" onclick="window.location.href='/subscribe'">Unlock</button>
+            </div>
+            {% endif %}
+
+            <div class="card-title">
+                Reel Script Generator
+                <span class="premium-label">Premium</span>
+            </div>
+            <div class="card-subtitle">Create engaging TikTok/Reel scripts</div>
+            
+            <label>Video Goal</label>
+            <textarea id="reel-goal" placeholder="What do you want to achieve? e.g., 'educate people about SEO'" {% if user_tier != 'premium' %}disabled{% endif %}></textarea>
+            <button class="btn-primary" id="reel-btn" {% if user_tier != 'premium' %}disabled{% endif %}>Generate Script</button>
+            
+            <div class="result-box" id="reel-result">
+                <div class="result-label">Generated Script</div>
+                <div id="reel-text-result"></div>
+            </div>
+        </div>
+
+        <!-- POST IDEAS -->
+        <div id="post-ideas" class="card {% if user_tier != 'premium' %}locked{% endif %}">
+            {% if user_tier != 'premium' %}
+            <div class="lock-overlay">
+                <div class="lock-icon">🔒</div>
+                <div class="lock-text">Premium Feature</div>
+                <button class="lock-btn" onclick="window.location.href('/subscribe')">Unlock</button>
+            </div>
+            {% endif %}
+
+            <div class="card-title">
+                Content Ideas Generator
+                <span class="premium-label">Premium</span>
+            </div>
+            <div class="card-subtitle">Get 10 unique content ideas for your niche</div>
+            
+            <label>Your Niche</label>
+            <input type="text" id="ideas-niche" placeholder="e.g., digital marketing, fitness" {% if user_tier != 'premium' %}disabled{% endif %}>
+            <button class="btn-primary" id="ideas-btn" {% if user_tier != 'premium' %}disabled{% endif %}>Generate Ideas</button>
+            
+            <div class="result-box" id="ideas-result">
+                <div class="result-label">Generated Ideas</div>
+                <div id="ideas-text-result"></div>
+            </div>
+        </div>
+
+        <!-- BIO GENERATOR -->
+        <div id="bio" class="card {% if user_tier != 'premium' %}locked{% endif %}">
+            {% if user_tier != 'premium' %}
+            <div class="lock-overlay">
+                <div class="lock-icon">🔒</div>
+                <div class="lock-text">Premium Feature</div>
+                <button class="lock-btn" onclick="window.location.href='/subscribe'">Unlock</button>
+            </div>
+            {% endif %}
+
+            <div class="card-title">
+                Bio Generator
+                <span class="premium-label">Premium</span>
+            </div>
+            <div class="card-subtitle">Create compelling profile bios</div>
+            
+            <div class="row">
+                <div>
+                    <label>Your Niche</label>
+                    <input type="text" id="bio-niche" placeholder="e.g., entrepreneur, coach" {% if user_tier != 'premium' %}disabled{% endif %}>
+                </div>
+                <div>
+                    <label>Vibe</label>
+                    <input type="text" id="bio-vibe" placeholder="e.g., Professional & friendly" {% if user_tier != 'premium' %}disabled{% endif %}>
+                </div>
+            </div>
+            <button class="btn-primary" id="bio-btn" {% if user_tier != 'premium' %}disabled{% endif %}>Generate Bios</button>
+            
+            <div class="result-box" id="bio-result">
+                <div class="result-label">Generated Bios</div>
+                <div id="bio-text-result"></div>
+            </div>
+        </div>
+
+        <!-- CAROUSEL CAPTIONS -->
+        <div id="carousel" class="card {% if user_tier != 'premium' %}locked{% endif %}">
+            {% if user_tier != 'premium' %}
+            <div class="lock-overlay">
+                <div class="lock-icon">🔒</div>
+                <div class="lock-text">Premium Feature</div>
+                <button class="lock-btn" onclick="window.location.href='/subscribe'">Unlock</button>
+            </div>
+            {% endif %}
+
+            <div class="card-title">
+                Carousel Caption Generator
+                <span class="premium-label">Premium</span>
+            </div>
+            <div class="card-subtitle">Create captions for carousel posts</div>
+            
+            <div class="row">
+                <div>
+                    <label>Topic</label>
+                    <input type="text" id="carousel-topic" placeholder="What's your carousel about?" {% if user_tier != 'premium' %}disabled{% endif %}>
+                </div>
+                <div>
+                    <label>Number of Slides</label>
+                    <input type="number" id="carousel-count" value="5" min="2" max="10" {% if user_tier != 'premium' %}disabled{% endif %}>
+                </div>
+            </div>
+            <button class="btn-primary" id="carousel-btn" {% if user_tier != 'premium' %}disabled{% endif %}>Generate Captions</button>
+            
+            <div class="result-box" id="carousel-result">
+                <div class="result-label">Generated Captions</div>
+                <div id="carousel-text-result"></div>
+            </div>
+        </div>
+
+        <!-- ENGAGEMENT HOOKS -->
+        <div id="hooks" class="card {% if user_tier != 'premium' %}locked{% endif %}">
+            {% if user_tier != 'premium' %}
+            <div class="lock-overlay">
+                <div class="lock-icon">🔒</div>
+                <div class="lock-text">Premium Feature</div>
+                <button class="lock-btn" onclick="window.location.href='/subscribe'">Unlock</button>
+            </div>
+            {% endif %}
+
+            <div class="card-title">
+                Engagement Hooks
+                <span class="premium-label">Premium</span>
+            </div>
+            <div class="card-subtitle">Generate hooks that spark engagement</div>
+            
+            <div class="row">
+                <div>
+                    <label>Content Type</label>
+                    <input type="text" id="hooks-type" placeholder="e.g., post, reel, story" {% if user_tier != 'premium' %}disabled{% endif %}>
+                </div>
+                <div>
+                    <label>Topic</label>
+                    <input type="text" id="hooks-topic" placeholder="What's your content about?" {% if user_tier != 'premium' %}disabled{% endif %}>
+                </div>
+            </div>
+            <button class="btn-primary" id="hooks-btn" {% if user_tier != 'premium' %}disabled{% endif %}>Generate Hooks</button>
+            
+            <div class="result-box" id="hooks-result">
+                <div class="result-label">Generated Hooks</div>
+                <div id="hooks-text-result"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    async function postJSON(url, data) {
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data)
+        });
+        return response.json();
+    }
+
+    // Free Caption
+    document.getElementById('caption-btn').addEventListener('click', async () => {
+        const text = document.getElementById('caption-text').value;
+        if (!text.trim()) {
+            alert('Please enter some text');
+            return;
+        }
+
+        const resultBox = document.getElementById('caption-result');
+        const resultText = document.getElementById('caption-text-result');
+        resultBox.style.display = 'block';
+        resultText.textContent = 'Generating caption...';
+
+        try {
+            const formData = new FormData();
+            formData.append('user_text', text);
+            const response = await fetch('/generate-caption', { method: 'POST', body: formData });
+            const data = await response.json();
+            resultText.textContent = data.caption || data.error || 'Error';
+        } catch (err) {
+            resultText.textContent = 'Error: ' + err.message;
+        }
+    });
+
+    // Premium Caption
+    document.getElementById('premium-caption-btn').addEventListener('click', async () => {
+        const text = document.getElementById('premium-caption-text').value;
+        if (!text.trim()) {
+            alert('Please enter some text');
+            return;
+        }
+
+        const resultBox = document.getElementById('premium-caption-result');
+        const resultText = document.getElementById('premium-caption-text-result');
+        resultBox.style.display = 'block';
+        resultText.textContent = 'Generating caption...';
+
+        try {
+            const data = await postJSON('/api/premium-caption', { description: text });
+            if (data.error) {
+                resultText.textContent = data.error;
+            } else {
+                resultText.textContent = data.caption || 'Error';
+            }
+        } catch (err) {
+            resultText.textContent = 'Error: ' + err.message;
+        }
+    });
+
+    // Hashtags
+    document.getElementById('hashtags-btn').addEventListener('click', async () => {
+        const topic = document.getElementById('hashtags-topic').value;
+        const platform = document.getElementById('hashtags-platform').value;
+        const size = document.getElementById('hashtags-size').value;
+
+        const resultBox = document.getElementById('hashtags-result');
+        const resultText = document.getElementById('hashtags-text-result');
+        resultBox.style.display = 'block';
+        resultText.textContent = 'Generating hashtags...';
+
+        try {
+            const data = await postJSON('/api/hashtags', { topic, platform, size });
+            if (data.error) {
+                resultText.textContent = data.error;
+            } else {
+                resultText.textContent = data.hashtags || 'Error';
+            }
+        } catch (err) {
+            resultText.textContent = 'Error: ' + err.message;
+        }
+    });
+
+    // Reel Script
+    document.getElementById('reel-btn').addEventListener('click', async () => {
+        const goal = document.getElementById('reel-goal').value;
+        
+        const resultBox = document.getElementById('reel-result');
+        const resultText = document.getElementById('reel-text-result');
+        resultBox.style.display = 'block';
+        resultText.textContent = 'Generating script...';
+
+        try {
+            const data = await postJSON('/api/reel-script', { goal });
+            if (data.error) {
+                resultText.textContent = data.error;
+            } else {
+                resultText.textContent = data.script || 'Error';
+            }
+        } catch (err) {
+            resultText.textContent = 'Error: ' + err.message;
+        }
+    });
+
+    // Post Ideas
+    document.getElementById('ideas-btn').addEventListener('click', async () => {
+        const niche = document.getElementById('ideas-niche').value;
+
+        const resultBox = document.getElementById('ideas-result');
+        const resultText = document.getElementById('ideas-text-result');
+        resultBox.style.display = 'block';
+        resultText.textContent = 'Brainstorming ideas...';
+
+        try {
+            const data = await postJSON('/api/post-ideas', { niche });
+            if (data.error) {
+                resultText.textContent = data.error;
+            } else {
+                resultText.textContent = data.ideas || 'Error';
+            }
+        } catch (err) {
+            resultText.textContent = 'Error: ' + err.message;
+        }
+    });
+
+    // Bio Generator
+    document.getElementById('bio-btn').addEventListener('click', async () => {
+        const niche = document.getElementById('bio-niche').value;
+        const vibe = document.getElementById('bio-vibe').value;
+
+        const resultBox = document.getElementById('bio-result');
+        const resultText = document.getElementById('bio-text-result');
+        resultBox.style.display = 'block';
+        resultText.textContent = 'Creating bios...';
+
+        try {
+            const data = await postJSON('/api/bio-generator', { niche, vibe });
+            if (data.error) {
+                resultText.textContent = data.error;
+            } else {
+                resultText.textContent = data.bios || 'Error';
+            }
+        } catch (err) {
+            resultText.textContent = 'Error: ' + err.message;
+        }
+    });
+
+    // Carousel Captions
+    document.getElementById('carousel-btn').addEventListener('click', async () => {
+        const topic = document.getElementById('carousel-topic').value;
+        const slide_count = document.getElementById('carousel-count').value;
+
+        const resultBox = document.getElementById('carousel-result');
+        const resultText = document.getElementById('carousel-text-result');
+        resultBox.style.display = 'block';
+        resultText.textContent = 'Crafting captions...';
+
+        try {
+            const data = await postJSON('/api/carousel-captions', { topic, slide_count });
+            if (data.error) {
+                resultText.textContent = data.error;
+            } else {
+                resultText.textContent = data.captions || 'Error';
+            }
+        } catch (err) {
+            resultText.textContent = 'Error: ' + err.message;
+        }
+    });
+
+    // Engagement Hooks
+    document.getElementById('hooks-btn').addEventListener('click', async () => {
+        const content_type = document.getElementById('hooks-type').value;
+        const topic = document.getElementById('hooks-topic').value;
+
+        const resultBox = document.getElementById('hooks-result');
+        const resultText = document.getElementById('hooks-text-result');
+        resultBox.style.display = 'block';
+        resultText.textContent = 'Generating hooks...';
+
+        try {
+            const data = await postJSON('/api/engagement-hooks', { content_type, topic });
+            if (data.error) {
+                resultText.textContent = data.error;
+            } else {
+                resultText.textContent = data.hooks || 'Error';
+            }
+        } catch (err) {
+            resultText.textContent = 'Error: ' + err.message;
+        }
+    });
+
+    // Navigation
+    document.querySelectorAll('.nav-link').forEach(link => {
+        link.addEventListener('click', (e) => {
+            document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
+            link.classList.add('active');
+        });
+    });
+</script>
+
+</body>
+</html>
