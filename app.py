@@ -85,8 +85,8 @@ def signup():
             "options": {"email_redirect_to": "https://aiassistantpros.onrender.com/login"}
         })
 
-        if "error" in response and response["error"]:
-            return render_template("signup.html", error=response["error"]["message"])
+    if "error" in response and response["error"]:
+        return render_template("signup.html", error=response["error"]["message"])
         else:
             return redirect("/signup-success")
 
