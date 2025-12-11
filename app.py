@@ -4,6 +4,7 @@ from openai import OpenAI
 from dotenv import load_dotenv
 import stripe
 import os
+from datetime import datetime, timedelta
 
 # Load environment variables FIRST
 load_dotenv()
@@ -33,6 +34,63 @@ YOUR_DOMAIN = os.getenv("DOMAIN_URL", "http://127.0.0.1:5000")
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 print("[INFO] App initialized successfully")
+# Helper: normalize different Supabase sign-in responses
+def _parse_supabase_signin_result(result):
+    """Return tuple (email, id, error_or_none).
+    Accepts different shapes returned by supabase client (dict, object-like).
+    """
+    email = None
+    user_id = None
+    err = None
+
+    try:
+        # If dict-like
+        if isinstance(result, dict):
+            err = result.get("error")
+            data = result.get("data") or result.get("user") or result.get("session")
+            # If data is a dict with user
+            if isinstance(data, dict) and data.get("user"):
+                u = data.get("user")
+                if isinstance(u, dict):
+                    email = u.get("email")
+                    user_id = u.get("id")
+                else:
+                    email = getattr(u, "email", None)
+                    user_id = getattr(u, "id", None)
+            # If data itself is user-like
+            elif isinstance(data, dict) and data.get("email"):
+                email = data.get("email")
+                user_id = data.get("id")
+            # direct user at top-level
+            elif isinstance(result.get("user"), dict):
+                email = result.get("user").get("email")
+                user_id = result.get("user").get("id")
+            else:
+                # fallback: check common keys
+                email = result.get("email") or (data.get("email") if isinstance(data, dict) else None)
+                user_id = result.get("id") or (data.get("id") if isinstance(data, dict) else None)
+
+        else:
+            # object-like: try attributes
+            err = getattr(result, "error", None)
+            data = getattr(result, "data", None) or getattr(result, "user", None) or getattr(result, "session", None)
+            if data:
+                if isinstance(data, dict):
+                    email = data.get("email") or (data.get("user") and data.get("user").get("email"))
+                    user_id = data.get("id") or (data.get("user") and data.get("user").get("id"))
+                else:
+                    email = getattr(data, "email", None) or (getattr(data, "user", None) and getattr(getattr(data, "user", None), "email", None))
+                    user_id = getattr(data, "id", None) or (getattr(data, "user", None) and getattr(getattr(data, "user", None), "id", None))
+            # last-ditch: attributes on result
+            email = email or getattr(result, "email", None)
+            user_id = user_id or getattr(result, "id", None)
+
+    except Exception as e:
+        # Return what we managed and the exception as error
+        return (email, user_id, f"parse-error: {str(e)}")
+
+    return (email, user_id, err)
+
 # --------------------
 # LANDING PAGE
 # --------------------
@@ -147,13 +205,15 @@ def signup():
                     error_msg = str(error)
                 return render_template("signup.html", error=error_msg)
             else:
-                # Create user profile in database as FREE tier by default
+                # Create user profile in database as FREE tier with 3-day trial by default
                 if user_id:
                     try:
+                        trial_ends_at = (datetime.utcnow() + timedelta(days=3)).isoformat()
                         supabase.table("users").insert({
                             "id": user_id,
                             "email": email,
                             "tier": "free",
+                            "trial_ends_at": trial_ends_at,
                             "created_at": "now()"
                         }).execute()
                     except Exception as db_error:
@@ -184,60 +244,64 @@ def login():
                 "password": password
             })
 
-            # Normalize response
-            error = None
-            data = None
-            if isinstance(result, dict):
-                error = result.get("error")
-                data = result.get("data")
-            else:
-                error = getattr(result, "error", None)
-                data = getattr(result, "data", None)
+            # Debug: log raw result for troubleshooting
+            try:
+                print("[DEBUG] Supabase sign_in result type:", type(result))
+                print("[DEBUG] Supabase sign_in raw result:", repr(result))
+            except Exception as e:
+                print(f"[DEBUG] Could not print raw result: {str(e)}")
 
-            if error:
-                if isinstance(error, dict) and error.get("message"):
-                    msg = error.get("message")
+            # Normalize result into (email, user_id, error)
+            parsed_email, parsed_user_id, parsed_error = _parse_supabase_signin_result(result)
+
+            # Normalize response
+            # If parsing returned an explicit error, treat as login failure
+            if parsed_error:
+                # If error is a dict-like with message, extract
+                if isinstance(parsed_error, dict) and parsed_error.get("message"):
+                    msg = parsed_error.get("message")
                 else:
-                    msg = str(error)
+                    msg = str(parsed_error)
+                print(f"[INFO] Login failed for {email}: {msg}")
                 return render_template("login.html", error=msg)
 
-            # On success, store a consistent user object in the session
-            user_email = None
-            user_id = None
-            if (isinstance(data, dict) and data.get("user")):
-                user_obj = data["user"]
-                user_email = user_obj.get("email") if isinstance(user_obj, dict) else getattr(user_obj, "email", None)
-                user_id = user_obj.get("id") if isinstance(user_obj, dict) else getattr(user_obj, "id", None)
-            else:
-                user_email = email
+            # On success, pick parsed values, fall back to form email
+            user_email = parsed_email or email
+            user_id = parsed_user_id
 
             # Fetch user tier from database, or create profile if it doesn't exist
             user_tier = "free"  # Default to free
+            trial_ends_at = None
             try:
                 if user_id:
                     # Try to fetch existing user profile
                     try:
-                        user_data = supabase.table("users").select("tier").eq("id", user_id).execute()
+                        user_data = supabase.table("users").select("tier,trial_ends_at").eq("id", user_id).execute()
                         if user_data and user_data.data and len(user_data.data) > 0:
                             user_tier = user_data.data[0].get("tier", "free")
+                            trial_ends_at = user_data.data[0].get("trial_ends_at")
                         else:
-                            # User doesn't exist in users table, create profile
+                            # User doesn't exist in users table, create profile with 3-day trial
+                            trial_ends_at = (datetime.utcnow() + timedelta(days=3)).isoformat()
                             supabase.table("users").insert({
                                 "id": user_id,
                                 "email": user_email,
                                 "tier": "free",
+                                "trial_ends_at": trial_ends_at,
                                 "created_at": "now()"
                             }).execute()
                             user_tier = "free"
                     except Exception as query_error:
                         print(f"[WARNING] Query/insert error for user {user_id}: {str(query_error)}")
-                        # If table doesn't exist or other error, just use default
+                        # If table doesn't exist or other error, just use default with trial
                         user_tier = "free"
+                        trial_ends_at = (datetime.utcnow() + timedelta(days=3)).isoformat()
             except Exception as db_error:
                 print(f"[WARNING] Could not fetch/create user tier: {str(db_error)}")
                 user_tier = "free"  # Default to free if lookup fails
+                trial_ends_at = (datetime.utcnow() + timedelta(days=3)).isoformat()
 
-            session["user"] = {"email": user_email, "tier": user_tier, "id": user_id}
+            session["user"] = {"email": user_email, "tier": user_tier, "id": user_id, "trial_ends_at": trial_ends_at}
             return redirect("/dashboard")
         except Exception as e:
             error_msg = f"Login error: {str(e)}"
@@ -308,21 +372,47 @@ def dashboard():
         user = session.get("user") or {}
         user_email = user.get("email") if isinstance(user, dict) else None
         user_tier = user.get("tier", "free") if isinstance(user, dict) else "free"
+        trial_ends_at = user.get("trial_ends_at") if isinstance(user, dict) else None
         
-        return render_template("dashboard_unified.html", user_email=user_email, user_tier=user_tier)
+        # Calculate days left on trial
+        trial_days_left = None
+        if trial_ends_at and user_tier == "free":
+            try:
+                trial_end = datetime.fromisoformat(trial_ends_at)
+                days_left = (trial_end - datetime.utcnow()).days
+                trial_days_left = max(0, days_left + 1)  # +1 to include current day
+            except Exception as e:
+                print(f"[WARNING] Could not calculate trial days: {str(e)}")
+        
+        return render_template("dashboard_unified.html", user_email=user_email, user_tier=user_tier, trial_days_left=trial_days_left)
     except Exception as e:
         error_msg = f"Dashboard error: {str(e)}"
         print(f"[ERROR] Dashboard route exception: {error_msg}")
         return render_template("login.html", error="An error occurred. Please log in again.")
 
 
-# Helper to check if user is premium
+# Helper to check if user is premium or has active trial
 def is_premium():
     if "user" not in session:
         return False
     user = session.get("user") or {}
+    
+    # Check if user is premium subscriber
     tier = user.get("tier", "free") if isinstance(user, dict) else "free"
-    return tier == "premium"
+    if tier == "premium":
+        return True
+    
+    # Check if user has active trial
+    trial_ends_at = user.get("trial_ends_at") if isinstance(user, dict) else None
+    if trial_ends_at:
+        try:
+            trial_end = datetime.fromisoformat(trial_ends_at)
+            if datetime.utcnow() < trial_end:
+                return True
+        except Exception as e:
+            print(f"[WARNING] Could not parse trial_ends_at: {str(e)}")
+    
+    return False
 
 
 # Redirect free users to subscribe
