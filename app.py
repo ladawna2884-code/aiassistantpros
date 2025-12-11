@@ -16,6 +16,13 @@ app.secret_key = os.getenv("SECRET_KEY") or os.getenv(
 # Initialize Supabase client
 SUPABASE_URL = os.getenv("SUPABASE_URL") or os.getenv("NEXT_SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_KEY") or os.getenv("SUPABASE_SERVICE_ROLE")
+
+# Validate Supabase credentials
+if not SUPABASE_URL or not SUPABASE_KEY:
+    print("[WARNING] Supabase credentials not fully configured")
+    print(f"  SUPABASE_URL: {'✓' if SUPABASE_URL else '✗'}")
+    print(f"  SUPABASE_KEY: {'✓' if SUPABASE_KEY else '✗'}")
+
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 # STRIPE CONFIG
@@ -24,6 +31,8 @@ YOUR_DOMAIN = os.getenv("DOMAIN_URL", "http://127.0.0.1:5000")
 
 # OPENAI CLIENT
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+
+print("[INFO] App initialized successfully")
 # --------------------
 # LANDING PAGE
 # --------------------
@@ -195,27 +204,37 @@ def login():
             # On success, store a consistent user object in the session
             user_email = None
             user_id = None
-            if (isinstance(data, dict) and data.get("user") and
-                    data["user"].get("email")):
-                user_email = data["user"]["email"]
-                user_id = data["user"].get("id")
+            if (isinstance(data, dict) and data.get("user")):
+                user_obj = data["user"]
+                user_email = user_obj.get("email") if isinstance(user_obj, dict) else getattr(user_obj, "email", None)
+                user_id = user_obj.get("id") if isinstance(user_obj, dict) else getattr(user_obj, "id", None)
             else:
                 user_email = email
 
-            # Fetch user tier from database
+            # Fetch user tier from database, or create profile if it doesn't exist
             user_tier = "free"  # Default to free
             try:
                 if user_id:
-                    user_data = supabase.table("users").select("tier").eq("id", user_id).execute()
-                    if user_data and user_data.data and len(user_data.data) > 0:
-                        user_tier = user_data.data[0].get("tier", "free")
-                else:
-                    # Fallback: search by email
-                    user_data = supabase.table("users").select("tier").eq("email", user_email).execute()
-                    if user_data and user_data.data and len(user_data.data) > 0:
-                        user_tier = user_data.data[0].get("tier", "free")
+                    # Try to fetch existing user profile
+                    try:
+                        user_data = supabase.table("users").select("tier").eq("id", user_id).execute()
+                        if user_data and user_data.data and len(user_data.data) > 0:
+                            user_tier = user_data.data[0].get("tier", "free")
+                        else:
+                            # User doesn't exist in users table, create profile
+                            supabase.table("users").insert({
+                                "id": user_id,
+                                "email": user_email,
+                                "tier": "free",
+                                "created_at": "now()"
+                            }).execute()
+                            user_tier = "free"
+                    except Exception as query_error:
+                        print(f"[WARNING] Query/insert error for user {user_id}: {str(query_error)}")
+                        # If table doesn't exist or other error, just use default
+                        user_tier = "free"
             except Exception as db_error:
-                print(f"[WARNING] Could not fetch user tier: {str(db_error)}")
+                print(f"[WARNING] Could not fetch/create user tier: {str(db_error)}")
                 user_tier = "free"  # Default to free if lookup fails
 
             session["user"] = {"email": user_email, "tier": user_tier, "id": user_id}
