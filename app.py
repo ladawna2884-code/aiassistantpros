@@ -10,7 +10,8 @@ load_dotenv()
 
 # Initialize Flask app
 app = Flask(__name__)
-app.secret_key = os.getenv("SECRET_KEY") or os.getenv("APP_SECRET") or "dev-secret"
+app.secret_key = os.getenv("SECRET_KEY") or os.getenv(
+    "APP_SECRET") or "dev-secret"
 
 # Initialize Supabase client
 SUPABASE_URL = os.getenv("SUPABASE_URL") or os.getenv("NEXT_SUPABASE_URL")
@@ -26,6 +27,8 @@ client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 # --------------------
 # LANDING PAGE
 # --------------------
+
+
 @app.route("/")
 def landing():
     return render_template("landing.html")
@@ -33,6 +36,8 @@ def landing():
 # --------------------
 # HOME PAGE (Dashboard)
 # --------------------
+
+
 @app.route("/home")
 def home():
     return render_template("home.html")
@@ -40,6 +45,8 @@ def home():
 # --------------------
 # STRIPE CHECKOUT
 # --------------------
+
+
 @app.route("/create-checkout-session", methods=["POST"])
 def create_checkout_session():
     try:
@@ -47,10 +54,12 @@ def create_checkout_session():
             payment_method_types=["card"],
             mode="subscription",  # recurring subscription
             line_items=[{
-                "price": os.getenv("STRIPE_PRICE_ID"),  # your Stripe monthly price ID
+                # your Stripe monthly price ID
+                "price": os.getenv("STRIPE_PRICE_ID"),
                 "quantity": 1,
             }],
-            success_url=YOUR_DOMAIN + "/success?session_id={CHECKOUT_SESSION_ID}",
+            success_url=YOUR_DOMAIN +
+            "/success?session_id={CHECKOUT_SESSION_ID}",
             cancel_url=YOUR_DOMAIN + "/cancel",
         )
 
@@ -62,6 +71,8 @@ def create_checkout_session():
 # --------------------
 # SUCCESS PAGE
 # --------------------
+
+
 @app.route("/success")
 def success():
     return render_template("success.html")
@@ -70,6 +81,8 @@ def success():
 # CANCEL PAGE
 # --------------------
 # CANCEL PAGE
+
+
 @app.route("/cancel")
 def cancel():
     return render_template("cancel.html")
@@ -79,6 +92,8 @@ def cancel():
 # ============================================
 
 # SIGNUP PAGE
+
+
 @app.route("/signup", methods=["GET", "POST"])
 def signup():
     if request.method == "POST":
@@ -88,11 +103,16 @@ def signup():
         response = supabase.auth.sign_up({
             "email": email,
             "password": password,
-            "options": {"email_redirect_to": "https://aiassistantpros.onrender.com/login"}
+            "options": {
+                "email_redirect_to": (
+                    "https://aiassistantpros.onrender.com/login"
+                )
+            }
         })
 
         if "error" in response and response["error"]:
-            return render_template("signup.html", error=response["error"]["message"])
+            error_msg = response["error"]["message"]
+            return render_template("signup.html", error=error_msg)
         else:
             return redirect("/signup-success")
 
@@ -124,12 +144,16 @@ def login():
             data = getattr(result, "data", None)
 
         if error:
-            message = error.get("message") if isinstance(error, dict) and error.get("message") else str(error)
-            return render_template("login.html", error=message)
+            if isinstance(error, dict) and error.get("message"):
+                msg = error.get("message")
+            else:
+                msg = str(error)
+            return render_template("login.html", error=msg)
 
         # On success, store a consistent user object in the session
         user_email = None
-        if isinstance(data, dict) and data.get("user") and data["user"].get("email"):
+        if (isinstance(data, dict) and data.get("user") and
+                data["user"].get("email")):
             user_email = data["user"]["email"]
         else:
             user_email = email
@@ -140,11 +164,14 @@ def login():
     # Handle GET requests
     return render_template("login.html")
 
+
 @app.route("/signup-success")
 def signup_success():
     return render_template("signup_success.html")
 
 # LOGOUT
+
+
 @app.route("/logout")
 def logout():
     session.pop("user", None)
@@ -168,7 +195,10 @@ def generate_caption():
         response = client.chat.completions.create(
             model="gpt-3.5-turbo",
             messages=[
-                {"role": "system", "content": "You create short, catchy Instagram captions."},
+                {
+                    "role": "system",
+                    "content": "You create short, catchy Instagram captions."
+                },
                 {"role": "user", "content": user_text}
             ]
         )
@@ -194,7 +224,6 @@ def dashboard():
     user = session.get("user") or {}
     user_email = user.get("email") if isinstance(user, dict) else None
     return render_template("dashboard.html", user_email=user_email)
-
 
 
 # ==========================
@@ -317,8 +346,7 @@ def api_post_ideas():
         ideas = response.choices[0].message.content.strip()
         return jsonify({"ideas": ideas})
     except Exception as e:
-        return jsonify({"error": str(e)}), 500    
-
+        return jsonify({"error": str(e)}), 500
 
 
 # =====================================================
@@ -340,8 +368,13 @@ def generate_premium_caption():
         response = client.chat.completions.create(
             model="gpt-4o-mini",
             messages=[
-                {"role": "system",
-                 "content": "Write longer, creative Instagram captions with emojis."},
+                {
+                    "role": "system",
+                    "content": (
+                        "Write longer, creative Instagram captions "
+                        "with emojis."
+                    )
+                },
                 {"role": "user", "content": user_text}
             ]
         )
