@@ -10,24 +10,30 @@ load_dotenv()
 
 # Initialize Flask app
 app = Flask(__name__)
-app.secret_key = os.getenv("41dfcd12b52cda4f7a9cd8e646ae1e6c")
+app.secret_key = os.getenv("SECRET_KEY") or os.getenv("APP_SECRET") or "dev-secret"
 
 # Initialize Supabase client
-supabase: Client = create_client(
-    os.getenv("https://selufuikaahpuapvuebw.supabase.co"),
-    os.getenv("eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNlbHVmdWlrYWFocHVhcHZ1ZWJ3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjUwMzQwMDgsImV4cCI6MjA4MDYxMDAwOH0.71Q2t4MxGYVCBrbyRGlHv2LalffPCVwL17ScB0AZfn0")
-)
+SUPABASE_URL = os.getenv("SUPABASE_URL") or os.getenv("NEXT_SUPABASE_URL")
+SUPABASE_KEY = os.getenv("SUPABASE_KEY") or os.getenv("SUPABASE_SERVICE_ROLE")
+supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 # STRIPE CONFIG
-stripe.api_key = os.getenv("STRIP_SECRET_KEY")
+stripe.api_key = os.getenv("STRIPE_SECRET_KEY") or os.getenv("STRIPE_API_KEY")
 YOUR_DOMAIN = os.getenv("DOMAIN_URL", "http://127.0.0.1:5000")
 
 # OPENAI CLIENT
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 # --------------------
-# HOME PAGE
+# LANDING PAGE
 # --------------------
 @app.route("/")
+def landing():
+    return render_template("landing.html")
+
+# --------------------
+# HOME PAGE (Dashboard)
+# --------------------
+@app.route("/home")
 def home():
     return render_template("home.html")
 
@@ -85,13 +91,13 @@ def signup():
             "options": {"email_redirect_to": "https://aiassistantpros.onrender.com/login"}
         })
 
-    if "error" in response and response["error"]:
-        return render_template("signup.html", error=response["error"]["message"])
+        if "error" in response and response["error"]:
+            return render_template("signup.html", error=response["error"]["message"])
         else:
             return redirect("/signup-success")
 
     # Handles GET requests — user opening page normally
-            return render_template("signup.html")
+    return render_template("signup.html")
 
 
 # LOGIN PAGE
@@ -107,13 +113,32 @@ def login():
             "password": password
         })
 
-        # If login succeeded
-        if result.session:
-            session["user"] = email
-            return redirect("/dashboard")
+        # Normalize response
+        error = None
+        data = None
+        if isinstance(result, dict):
+            error = result.get("error")
+            data = result.get("data")
+        else:
+            error = getattr(result, "error", None)
+            data = getattr(result, "data", None)
 
-        # If login failed
-        return render_template("login.html", error="Invalid email or password")
+        if error:
+            message = error.get("message") if isinstance(error, dict) and error.get("message") else str(error)
+            return render_template("login.html", error=message)
+
+        # On success, store a consistent user object in the session
+        user_email = None
+        if isinstance(data, dict) and data.get("user") and data["user"].get("email"):
+            user_email = data["user"]["email"]
+        else:
+            user_email = email
+
+        session["user"] = {"email": user_email}
+        return redirect("/dashboard")
+
+    # Handle GET requests
+    return render_template("login.html")
 
 @app.route("/signup-success")
 def signup_success():
@@ -126,12 +151,7 @@ def logout():
     return redirect("/login")
 
 
-# PROTECTED DASHBOARD
-@app.route("/dashboard")
-def dashboard():
-    if "user" not in session:
-        return redirect("/login")
-    return render_template("dashboard.html")
+# (dashboard handler is defined later with consistent session handling)
 
 # CAPTION PAGE (Free Tier)
 @app.route("/caption")
@@ -169,9 +189,10 @@ def generate_caption():
 @app.route("/dashboard")
 def dashboard():
     if "user" not in session:
-        return redirect("/login")  # user is not logged in → send to login page
+        return redirect("/login")
 
-    user_email = session["user"]["email"]
+    user = session.get("user") or {}
+    user_email = user.get("email") if isinstance(user, dict) else None
     return render_template("dashboard.html", user_email=user_email)
 
 
