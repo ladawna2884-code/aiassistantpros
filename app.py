@@ -235,14 +235,27 @@ def signup():
 def login():
     if request.method == "POST":
         try:
-            email = request.form.get("email")
-            password = request.form.get("password")
+            email = (request.form.get("email") or "").strip()
+            password = request.form.get("password") or ""
 
-            # Attempt login
-            result = supabase.auth.sign_in_with_password({
-                "email": email,
-                "password": password
-            })
+            # Basic validation
+            if not email or not password:
+                return render_template("login.html", error="Email and password are required.")
+
+            # Ensure Supabase is configured
+            if not SUPABASE_URL or not SUPABASE_KEY:
+                print("[ERROR] Supabase credentials missing when attempting login")
+                return render_template("login.html", error="Authentication service unavailable. Please try later.")
+
+            # Attempt login; catch network/SDK errors explicitly
+            try:
+                result = supabase.auth.sign_in_with_password({
+                    "email": email,
+                    "password": password
+                })
+            except Exception as sign_exc:
+                print(f"[ERROR] Supabase sign_in exception for {email}: {str(sign_exc)}")
+                return render_template("login.html", error="Authentication service error. Please try again later.")
 
             # Debug: log raw result for troubleshooting
             try:
@@ -254,10 +267,8 @@ def login():
             # Normalize result into (email, user_id, error)
             parsed_email, parsed_user_id, parsed_error = _parse_supabase_signin_result(result)
 
-            # Normalize response
             # If parsing returned an explicit error, treat as login failure
             if parsed_error:
-                # If error is a dict-like with message, extract
                 if isinstance(parsed_error, dict) and parsed_error.get("message"):
                     msg = parsed_error.get("message")
                 else:
@@ -270,18 +281,18 @@ def login():
             user_id = parsed_user_id
 
             # Fetch user tier from database, or create profile if it doesn't exist
-            user_tier = "free"  # Default to free
+            user_tier = "free"
             trial_ends_at = None
             try:
                 if user_id:
-                    # Try to fetch existing user profile
+                    # Try to fetch existing user profile by id
                     try:
                         user_data = supabase.table("users").select("tier,trial_ends_at").eq("id", user_id).execute()
-                        if user_data and user_data.data and len(user_data.data) > 0:
+                        if user_data and getattr(user_data, "data", None) and len(user_data.data) > 0:
                             user_tier = user_data.data[0].get("tier", "free")
                             trial_ends_at = user_data.data[0].get("trial_ends_at")
                         else:
-                            # User doesn't exist in users table, create profile with 3-day trial
+                            # Create profile with 3-day trial
                             trial_ends_at = (datetime.utcnow() + timedelta(days=3)).isoformat()
                             supabase.table("users").insert({
                                 "id": user_id,
@@ -293,12 +304,36 @@ def login():
                             user_tier = "free"
                     except Exception as query_error:
                         print(f"[WARNING] Query/insert error for user {user_id}: {str(query_error)}")
-                        # If table doesn't exist or other error, just use default with trial
+                        user_tier = "free"
+                        trial_ends_at = (datetime.utcnow() + timedelta(days=3)).isoformat()
+                else:
+                    # If we don't have a user_id, try to look up profile by email
+                    try:
+                        user_data = supabase.table("users").select("id,tier,trial_ends_at").eq("email", user_email).execute()
+                        if user_data and getattr(user_data, "data", None) and len(user_data.data) > 0:
+                            user_tier = user_data.data[0].get("tier", "free")
+                            trial_ends_at = user_data.data[0].get("trial_ends_at")
+                            user_id = user_data.data[0].get("id") or user_id
+                        else:
+                            trial_ends_at = (datetime.utcnow() + timedelta(days=3)).isoformat()
+                            insert_res = supabase.table("users").insert({
+                                "email": user_email,
+                                "tier": "free",
+                                "trial_ends_at": trial_ends_at,
+                                "created_at": "now()"
+                            }).execute()
+                            try:
+                                if getattr(insert_res, "data", None) and len(insert_res.data) > 0:
+                                    user_id = insert_res.data[0].get("id") or user_id
+                            except Exception:
+                                pass
+                    except Exception as query_by_email_err:
+                        print(f"[WARNING] Could not query users by email {user_email}: {str(query_by_email_err)}")
                         user_tier = "free"
                         trial_ends_at = (datetime.utcnow() + timedelta(days=3)).isoformat()
             except Exception as db_error:
                 print(f"[WARNING] Could not fetch/create user tier: {str(db_error)}")
-                user_tier = "free"  # Default to free if lookup fails
+                user_tier = "free"
                 trial_ends_at = (datetime.utcnow() + timedelta(days=3)).isoformat()
 
             session["user"] = {"email": user_email, "tier": user_tier, "id": user_id, "trial_ends_at": trial_ends_at}
