@@ -1,11 +1,12 @@
-
-from flask import Flask, render_template, request, redirect, session, jsonify
+from flask import Flask, request, jsonify, render_template, redirect, session
 from supabase import create_client, Client
 from openai import OpenAI
 from dotenv import load_dotenv
 import stripe
 import os
 from datetime import datetime, timedelta
+from functools import wraps
+import jwt
 
 # Load environment variables FIRST
 load_dotenv()
@@ -14,6 +15,37 @@ load_dotenv()
 app = Flask(__name__)
 app.secret_key = os.getenv("SECRET_KEY") or os.getenv(
     "APP_SECRET") or "dev-secret"
+
+
+
+def token_required(f):
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        auth_header = request.headers.get("Authorization")
+
+        if not auth_header:
+            return jsonify({"error": "Missing token"}), 401
+
+        try:
+            token = auth_header.split(" ")[1]
+            payload = jwt.decode(
+                token,
+                app.secret_key,
+                algorithms=["HS256"]
+            )
+        except Exception:
+            return jsonify({"error": "Invalid or expired token"}), 401
+
+        db = SessionLocal()
+        user = db.query(User).filter(User.email == payload["email"]).first()
+        db.close()
+
+        if not user:
+            return jsonify({"error": "User not found"}), 401
+
+        return f(user, *args, **kwargs)
+
+    return decorated
 
 # Initialize Supabase client
 SUPABASE_URL = os.getenv("SUPABASE_URL") or os.getenv("NEXT_SUPABASE_URL")
@@ -38,8 +70,36 @@ except Exception as e:
 stripe.api_key = os.getenv("STRIPE_SECRET_KEY") or os.getenv("STRIPE_API_KEY")
 YOUR_DOMAIN = os.getenv("DOMAIN_URL", "http://127.0.0.1:5000")
 
+# =========================
+# TIER DEFINITIONS (SOURCE OF TRUTH)
+# =========================
+TIERS = {
+    "free": {
+        "limit": 1,
+        "can_save": False,
+        "can_rerun": False,
+        "priority": "low"
+    },
+    "pro": {
+        "limit": 20,
+        "can_save": True,
+        "can_rerun": True,
+        "priority": "high"
+    },
+    "agency": {
+        "limit": 200,
+        "can_save": True,
+        "can_rerun": True,
+        "priority": "highest"
+    }
+}
+def tier_allows(user, capability):
+    tier = user.tier
+    return TIERS.get(tier, {}).get(capability, False)
+
 # OPENAI CLIENT
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+
 
 print("[INFO] App initialized successfully")
 # Helper: normalize different Supabase sign-in responses
@@ -187,14 +247,12 @@ def signup():
                 return render_template("signup.html", error="Authentication service not configured. Please contact support.")
 
             response = supabase.auth.sign_up({
-                "email": email,
-                "password": password,
-                "options": {
-                    "email_redirect_to": (
-                        "https://aiassistantpros.onrender.com/login"
-                    )
-                }
-            })
+    "email": email,
+    "password": password,
+    "options": {
+        "email_redirect_to": "https://aiassistantpros.onrender.com/login"
+    }
+})
 
             # Normalize response (dict or object)
             error = None
@@ -266,8 +324,28 @@ def login():
                     "password": password
                 })
             except Exception as sign_exc:
-                print(f"[ERROR] Supabase sign_in exception for {email}: {str(sign_exc)}")
-                return render_template("login.html", error="Authentication service error. Please try again later.")
+                error_details = f"{type(sign_exc).__name__}: {str(sign_exc)}"
+                print(f"[ERROR] Supabase sign_in exception for {email}: {error_details}")
+                import traceback
+                print(f"[ERROR] Traceback: {traceback.format_exc()}")
+                
+                # If email not confirmed, offer magic link alternative
+                if "Email not confirmed" in str(sign_exc):
+                    print(f"[INFO] Email not confirmed for {email}. Sending magic link...")
+                    try:
+                        # Send magic link (passwordless signin)
+                        supabase.auth.sign_in_with_otp({
+                            "email": email,
+                            "options": {
+                                "email_redirect_to": "https://aiassistantpros.onrender.com/login"
+                            }
+                        })
+                        return render_template("login.html", error="Email confirmation required. We've sent you a magic link — check your inbox.")
+                    except Exception as otp_err:
+                        print(f"[ERROR] Magic link send failed: {str(otp_err)}")
+                        return render_template("login.html", error="Email confirmation required. Please check your email.")
+                
+                return render_template("login.html", error=f"Authentication error: {str(sign_exc)}")
 
             # Debug: log raw result for troubleshooting
             try:
@@ -380,30 +458,50 @@ def caption():
     return render_template("caption.html")
 
 
-# GENERATE CAPTION (Free Tier)
-@app.route("/generate-caption", methods=["POST"])
-def generate_caption():
-    try:
-        user_text = request.form.get("user_text", "")
+@app.route("/generate", methods=["POST"])
+@token_required
+def generate(user):
+    tier = user.tier
+    limit = TIERS.get(tier, {}).get("limit", 0)   
 
-        response = client.chat.completions.create(
-            model="gpt-3.5-turbo",
-            messages=[
-                {
-                    "role": "system",
-                    "content": "You create short, catchy Instagram captions."
-                },
-                {"role": "user", "content": user_text}
-            ]
-        )
+    # FREE = preview only (hard stop)
+    if tier == "free" and user.used >= 1:
+        return jsonify({
+             "error": "Free preview already used",
+             "upgrade": True
+        }), 403
 
-        # FIXED LINE — NO SUBSCRIPTING ERROR
-        ai_caption = response.choices[0].message.content
+    # PAID TIERS = usage limits
+    if user.used >= limit:
+        return jsonify({
+        "error": "Usage limit reached",
+        "upgrade": True
+    }), 403
 
-        return jsonify({"caption": ai_caption})
+    # CONSUME USE IMMEDIATELY
 
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
+    user.used += 1
+    db = SessionLocal()
+    db.merge(user)
+    db.commit()
+    db.close()
+
+    prompt = request.json.get("prompt")
+    if not prompt:
+        return jsonify({"error": "Missing prompt"}), 400
+
+    response = client.chat.completions.create(
+        model=TIERS[tier]["model"],
+        messages=[{"role": "user", "content": prompt}],
+        temperature=0.3
+    )
+
+    return jsonify({
+        "tier": tier,
+        "used": user.used,
+        "limit": limit,
+        "output": response.choices[0].message.content
+    })
 
 
 # ==========================
@@ -770,11 +868,129 @@ def generate_premium_caption():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+# ====================== AI PACKAGE ENGINE ==========================
+
+import uuid
+from flask import send_file
+
+OUTPUT_DIR = "packages"
+os.makedirs(OUTPUT_DIR, exist_ok=True)
+
+def generate_package(niche, product, tone, platform):
+    prompt = f"""
+You are an elite marketing strategist.
+
+Create a CLIENT-READY content package:
+
+Niche: {niche}
+Product/Offer: {product}
+Tone: {tone}
+Platform: {platform}
+
+Deliver EXACTLY:
+• 10 high-converting social captions  
+• 3 paid-ad copy variations  
+• 1 cold outreach email  
+• 1 CTA block  
+
+Respond in clean sections.
+"""
+
+    response = client.chat.completions.create(
+        model="gpt-4.1",
+        messages=[{"role": "user", "content": prompt}],
+        temperature=0.6,
+        max_tokens=1200
+    )
+
+    return response.choices[0].message.content
+
+def store_package(user_id, content):
+    package_id = str(uuid.uuid4())
+    filename = f"{package_id}.txt"
+    path = f"{OUTPUT_DIR}/{filename}"
+
+    with open(path, "w", encoding="utf-8") as f:
+        f.write(content)
+
+    # Save to Supabase for Pro/Agency
+    supabase.table("history").insert({
+        "id": package_id,
+        "user_id": user_id,
+        "filename": filename
+    }).execute()
+
+    return package_id, path
+
+def check_limit(user):
+    tier = user["tier"]
+    limit = TIERS.get(tier, {}).get("limit", 0)
+    used = user.get("used", 0)
+
+    if used >= limit:
+        return False
+    return True
+
+@app.route("/generate", methods=["POST"], endpoint="generate_content")
+@token_required
+def generate_content(user):
+    if not check_limit(user):
+        return jsonify({
+            "error": "Limit reached",
+            "upgrade": True
+        }), 403
+
+    data = request.json
+
+    content = generate_package(
+        data["niche"],
+        data["product"],
+        data["tone"],
+        data["platform"]
+    )
+    # Update usage count
+    supabase.table("profiles").update({
+        "used": user["used"] + 1
+    }).eq("id", user["id"]).execute()
+
+    # Save history ONLY for paid users
+    package_id, _path = None, None
+    if user["tier"] in ["pro", "agency"]:
+        package_id, _path = store_package(user["id"], content)
+
+    return jsonify({
+        "content": content,
+        "package_id": package_id
+    })
+@app.route("/download/<package_id>")
+@token_required
+def download(user, package_id):
+    path = f"{OUTPUT_DIR}/{package_id}.txt"
+
+    if not os.path.exists(path):
+        return jsonify({"error": "File not found"}), 404
+
+    return send_file(path, as_attachment=True)
+
+@app.route("/history")
+@token_required
+def history(user):
+    if user["tier"] == "free":
+        return jsonify({"history": []})
+
+    entries = supabase.table("history").select("*").eq("user_id", user["id"]).execute()
+    return jsonify(entries.data)
+
+@app.route("/generate-page")
+@token_required
+def show_generate_page(user):
+    return render_template("generate-page.html", user=user)
+
 
 # =====================================================
 # RUN THE APP
 # =====================================================
 if __name__ == "__main__":
     # Don't use debug=True in production
-    port = int(os.getenv("PORT", 5000))
+    port = int(os.getenv("PORT", 5001))
     app.run(host="0.0.0.0", port=port, debug=False)
