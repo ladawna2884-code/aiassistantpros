@@ -904,6 +904,5 @@ def show_generate_page(user):
 # RUN THE APP
 # =====================================================
 if __name__ == "__main__":
-    # Don't use debug=True in production
-    port = int(os.getenv("PORT", 5001))
-    app.run(host="0.0.0.0", port=port, debug=False)
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host="0.0.0.0", port=port)
