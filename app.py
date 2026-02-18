@@ -16,6 +16,7 @@ app = Flask(__name__)
 app.secret_key = os.getenv("SECRET_KEY") or os.getenv(
     "APP_SECRET") or "dev-secret"
 
+JWT_SECRET = os.getenv("JWT_SECRET")
 
 
 def token_required(f):
@@ -304,139 +305,51 @@ def signup():
 @app.route("/login", methods=["GET", "POST"])
 def login():
     if request.method == "POST":
+        email = (request.form.get("email") or "").strip()
+        password = (request.form.get("password") or "").strip()
+
+        # Basic validation
+        if not email or not password:
+            return render_template("login.html", error="Email and password are required")
+
+        # Ensure Supabase is configured
+        if not supabase or not SUPABASE_URL or not SUPABASE_KEY:
+            print("[ERROR] Supabase Client not initialized")
+            return render_template("login.html", error="Authentication service not configured")
+
         try:
-            email = (request.form.get("email") or "").strip()
-            password = request.form.get("password") or ""
+            # Attempt login
+            result = supabase.auth.sign_in_with_password({
+                "email": email,
+                "password": password
+            })
 
-            # Basic validation
-            if not email or not password:
-                return render_template("login.html", error="Email and password are required.")
+            # If login failed
+            if not result or not result.user:
+                return render_template("login.html", error="Invalid email or password")
 
-            # Ensure Supabase is configured
-            if not supabase or not SUPABASE_URL or not SUPABASE_KEY:
-                print("[ERROR] Supabase client not initialized when attempting login")
-                return render_template("login.html", error="Authentication service not configured. Please contact support.")
+            # Extract metadata
+            user_meta = result.user.user_metadata or {}
+            user_tier = user_meta.get("tier", "free")
+            trial_ends = user_meta.get("trial_ends_at")
 
-            # Attempt login; catch network/SDK errors explicitly
-            try:
-                result = supabase.auth.sign_in_with_password({
-                    "email": email,
-                    "password": password
-                })
-            except Exception as sign_exc:
-                error_details = f"{type(sign_exc).__name__}: {str(sign_exc)}"
-                print(f"[ERROR] Supabase sign_in exception for {email}: {error_details}")
-                import traceback
-                print(f"[ERROR] Traceback: {traceback.format_exc()}")
-                
-                # If email not confirmed, offer magic link alternative
-                if "Email not confirmed" in str(sign_exc):
-                    print(f"[INFO] Email not confirmed for {email}. Sending magic link...")
-                    try:
-                        # Send magic link (passwordless signin)
-                        supabase.auth.sign_in_with_otp({
-                            "email": email,
-                            "options": {
-                                "email_redirect_to": "https://aiassistantpros.onrender.com/login"
-                            }
-                        })
-                        return render_template("login.html", error="Email confirmation required. We've sent you a magic link — check your inbox.")
-                    except Exception as otp_err:
-                        print(f"[ERROR] Magic link send failed: {str(otp_err)}")
-                        return render_template("login.html", error="Email confirmation required. Please check your email.")
-                
-                return render_template("login.html", error=f"Authentication error: {str(sign_exc)}")
+            # SAVE user in session so dashboard stops crying
+            session["user"] = {
+                "email": email,
+                "tier": user_tier,
+                "trial_ends_at": trial_ends
+            }
 
-            # Debug: log raw result for troubleshooting
-            try:
-                print("[DEBUG] Supabase sign_in result type:", type(result))
-                print("[DEBUG] Supabase sign_in raw result:", repr(result))
-            except Exception as e:
-                print(f"[DEBUG] Could not print raw result: {str(e)}")
-
-            # Normalize result into (email, user_id, error)
-            parsed_email, parsed_user_id, parsed_error = _parse_supabase_signin_result(result)
-
-            # If parsing returned an explicit error, treat as login failure
-            if parsed_error:
-                if isinstance(parsed_error, dict) and parsed_error.get("message"):
-                    msg = parsed_error.get("message")
-                else:
-                    msg = str(parsed_error)
-                print(f"[INFO] Login failed for {email}: {msg}")
-                return render_template("login.html", error=msg)
-
-            # On success, pick parsed values, fall back to form email
-            user_email = parsed_email or email
-            user_id = parsed_user_id
-
-            # Fetch user tier from database, or create profile if it doesn't exist
-            user_tier = "free"
-            trial_ends_at = None
-            try:
-                if user_id:
-                    # Try to fetch existing user profile by id
-                    try:
-                        user_data = supabase.table("users").select("tier,trial_ends_at").eq("id", user_id).execute()
-                        if user_data and getattr(user_data, "data", None) and len(user_data.data) > 0:
-                            user_tier = user_data.data[0].get("tier", "free")
-                            trial_ends_at = user_data.data[0].get("trial_ends_at")
-                        else:
-                            # Create profile with 3-day trial
-                            trial_ends_at = (datetime.utcnow() + timedelta(days=3)).isoformat()
-                            supabase.table("users").insert({
-                                "id": user_id,
-                                "email": user_email,
-                                "tier": "free",
-                                "trial_ends_at": trial_ends_at,
-                                "created_at": "now()"
-                            }).execute()
-                            user_tier = "free"
-                    except Exception as query_error:
-                        print(f"[WARNING] Query/insert error for user {user_id}: {str(query_error)}")
-                        user_tier = "free"
-                        trial_ends_at = (datetime.utcnow() + timedelta(days=3)).isoformat()
-                else:
-                    # If we don't have a user_id, try to look up profile by email
-                    try:
-                        user_data = supabase.table("users").select("id,tier,trial_ends_at").eq("email", user_email).execute()
-                        if user_data and getattr(user_data, "data", None) and len(user_data.data) > 0:
-                            user_tier = user_data.data[0].get("tier", "free")
-                            trial_ends_at = user_data.data[0].get("trial_ends_at")
-                            user_id = user_data.data[0].get("id") or user_id
-                        else:
-                            trial_ends_at = (datetime.utcnow() + timedelta(days=3)).isoformat()
-                            insert_res = supabase.table("users").insert({
-                                "email": user_email,
-                                "tier": "free",
-                                "trial_ends_at": trial_ends_at,
-                                "created_at": "now()"
-                            }).execute()
-                            try:
-                                if getattr(insert_res, "data", None) and len(insert_res.data) > 0:
-                                    user_id = insert_res.data[0].get("id") or user_id
-                            except Exception:
-                                pass
-                    except Exception as query_by_email_err:
-                        print(f"[WARNING] Could not query users by email {user_email}: {str(query_by_email_err)}")
-                        user_tier = "free"
-                        trial_ends_at = (datetime.utcnow() + timedelta(days=3)).isoformat()
-            except Exception as db_error:
-                print(f"[WARNING] Could not fetch/create user tier: {str(db_error)}")
-                user_tier = "free"
-                trial_ends_at = (datetime.utcnow() + timedelta(days=3)).isoformat()
-
-            session["user"] = {"email": user_email, "tier": user_tier, "id": user_id, "trial_ends_at": trial_ends_at}
             return redirect("/dashboard")
+
         except Exception as e:
-            error_msg = f"Login error: {str(e)}"
-            print(f"[ERROR] Login route exception: {error_msg}")
-            return render_template("login.html", error="An error occurred during login. Please try again.")
+            print("LOGIN ERROR:", e)
+            return render_template("login.html", error="Login failed. Please try again.")
 
-    # Handle GET requests
+    # GET request → show login page
     return render_template("login.html")
-
-
+      
+                                  
 @app.route("/signup-success")
 def signup_success():
     return render_template("signup_success.html")
