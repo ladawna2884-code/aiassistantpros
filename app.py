@@ -444,11 +444,7 @@ def dashboard():
                 print(f"[WARNING] Could not calculate trial days: {str(e)}")
         
         return render_template("dashboard_unified.html", user_email=user_email, user_tier=user_tier, trial_days_left=trial_days_left)
-    except Exception as e:
-        error_msg = f"Dashboard error: {str(e)}"
-        print(f"[ERROR] Dashboard route exception: {error_msg}")
-        return render_template("login.html", error="An error occurred. Please log in again.")
-
+    
 
 # Helper to check if user is premium or has active trial
 def is_premium():
