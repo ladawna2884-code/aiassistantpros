@@ -312,20 +312,26 @@ def login():
             return render_template("login.html", error="Email and password are required.")
 
         try:
-            # Supabase login
             result = supabase.auth.sign_in_with_password({
                 "email": email,
                 "password": password
             })
 
-            # FIX #1: safely extract user object
-            user = getattr(result, "user", None)
+            # Extract user info safely
+            session_data = result.session
+            user = result.user
 
-            # If login failed and no user returned
-            if not user:
+            if session_data is None:
                 return render_template("login.html", error="Authentication failed. Check your credentials.")
 
-            # FIX #2: ALWAYS set session["user"]
+            # Fallback: if result.user is None, use data from session
+            if user is None:
+                user = session_data.user
+
+            if user is None:
+                return render_template("login.html", error="Authentication failed. Could not load user data.")
+
+            # Store essentials in session
             session["user"] = {
                 "id": user.id,
                 "email": user.email,
@@ -339,9 +345,7 @@ def login():
             print("LOGIN ERROR:", e)
             return render_template("login.html", error="Login failed. Please try again.")
 
-    # GET request → show login page
     return render_template("login.html")
-
  
 
            
