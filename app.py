@@ -318,33 +318,30 @@ def login():
                 "password": password
             })
 
-            user = result.user
-            session_data = result.session
+            # FIX #1: safely extract user object
+            user = getattr(result, "user", None)
 
-            # If Supabase didn't return a valid user
-            if user is None:
-                return render_template("login.html",
-                    error="Authentication failed. Check your credentials."
-                )
+            # If login failed and no user returned
+            if not user:
+                return render_template("login.html", error="Authentication failed. Check your credentials.")
 
-            # Store only the essentials in session
+            # FIX #2: ALWAYS set session["user"]
             session["user"] = {
                 "id": user.id,
                 "email": user.email,
-                "tier": "free",               # default tier
-                "trial_ends_at": None         # optional
+                "tier": "free",
+                "trial_ends_at": None
             }
 
             return redirect("/dashboard")
 
         except Exception as e:
             print("LOGIN ERROR:", e)
-            return render_template("login.html",
-                error="Login failed. Please try again."
-            )
+            return render_template("login.html", error="Login failed. Please try again.")
 
-    # GET request – load login page
+    # GET request → show login page
     return render_template("login.html")
+
  
 
            
