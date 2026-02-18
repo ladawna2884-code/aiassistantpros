@@ -429,23 +429,30 @@ def dashboard():
             return redirect("/login")
 
         user = session.get("user") or {}
-        user_email = user.get("email") if isinstance(user, dict) else None
-        user_tier = user.get("tier", "free") if isinstance(user, dict) else "free"
-        trial_ends_at = user.get("trial_ends_at") if isinstance(user, dict) else None
-        
-        # Calculate days left on trial
+        user_email = user.get("email")
+        user_tier = user.get("tier", "free")
+        trial_ends_at = user.get("trial_ends_at")
+
+        # Calculate days left
         trial_days_left = None
         if trial_ends_at and user_tier == "free":
             try:
                 trial_end = datetime.fromisoformat(trial_ends_at)
                 days_left = (trial_end - datetime.utcnow()).days
-                trial_days_left = max(0, days_left + 1)  # +1 to include current day
-            except Exception as e:
-                print(f"[WARNING] Could not calculate trial days: {str(e)}")
-        
-        return render_template("dashboard_unified.html", user_email=user_email, user_tier=user_tier, trial_days_left=trial_days_left)
-    
+                trial_days_left = max(0, days_left + 1)
+            except:
+                print("[WARNING] Could not calculate trial days")
 
+        return render_template(
+            "dashboard_unified.html",
+            user_email=user_email,
+            user_tier=user_tier,
+            trial_days_left=trial_days_left
+        )
+
+    except Exception as e:
+        print("[ERROR] Dashboard exception:", e)
+        return render_template("login.html", error="An error occurred. Please log in again.")
 # Helper to check if user is premium or has active trial
 def is_premium():
     if "user" not in session:
