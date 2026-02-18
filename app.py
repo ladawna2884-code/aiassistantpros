@@ -305,49 +305,49 @@ def signup():
 @app.route("/login", methods=["GET", "POST"])
 def login():
     if request.method == "POST":
-        email = (request.form.get("email") or "").strip()
-        password = (request.form.get("password") or "").strip()
+        email = request.form.get("email", "").strip()
+        password = request.form.get("password", "").strip()
 
-        # Basic validation
         if not email or not password:
-            return render_template("login.html", error="Email and password are required")
-
-        # Ensure Supabase is configured
-        if not supabase or not SUPABASE_URL or not SUPABASE_KEY:
-            print("[ERROR] Supabase Client not initialized")
-            return render_template("login.html", error="Authentication service not configured")
+            return render_template("login.html", error="Email and password are required.")
 
         try:
-            # Attempt login
+            # Supabase login
             result = supabase.auth.sign_in_with_password({
                 "email": email,
                 "password": password
             })
 
-            # If login failed
-            if not result or not result.user:
-                return render_template("login.html", error="Invalid email or password")
+            user = result.user
+            session_data = result.session
 
-            # Extract metadata
-            user_meta = result.user.user_metadata or {}
-            user_tier = user_meta.get("tier", "free")
-            trial_ends = user_meta.get("trial_ends_at")
+            # If Supabase didn't return a valid user
+            if user is None:
+                return render_template("login.html",
+                    error="Authentication failed. Check your credentials."
+                )
 
-            # SAVE user in session so dashboard stops crying
+            # Store only the essentials in session
             session["user"] = {
-                "email": email,
-                "tier": user_tier,
-                "trial_ends_at": trial_ends
+                "id": user.id,
+                "email": user.email,
+                "tier": "free",               # default tier
+                "trial_ends_at": None         # optional
             }
 
             return redirect("/dashboard")
 
         except Exception as e:
             print("LOGIN ERROR:", e)
-            return render_template("login.html", error="Login failed. Please try again.")
+            return render_template("login.html",
+                error="Login failed. Please try again."
+            )
 
-    # GET request → show login page
+    # GET request – load login page
     return render_template("login.html")
+ 
+
+           
       
                                   
 @app.route("/signup-success")
